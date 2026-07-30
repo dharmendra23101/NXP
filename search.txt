@@ -1,0 +1,637 @@
+1
+cd ~/cognipilot/cranium/
+colcon build
+
+2
+source ~/cognipilot/cranium/install/setup.bash
+ros2 launch b3rb_gz_bringup sil.launch.py world:=Raceway_1
+
+3
+source ~/cognipilot/cranium/install/setup.bash
+ros2 run b3rb_ros_line_follower vectors
+
+4
+source ~/cognipilot/cranium/install/setup.bash
+ros2 run b3rb_ros_line_follower runner
+
+
+
+detection live
+
+ros2 run b3rb_ros_line_follower detect
+
+
+live debug
+
+buggy-control-panel
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+edith@ubuntu:~/cognipilot/cranium$ ros2 run b3rb_ros_line_follower detect
+[INFO] [1785438295.450004876] [object_recognizer]: Loaded YOLOv8 model from /home/edith/cognipilot/cranium/src/b3rb_ros_line_follower/b3rb_ros_line_follower/b3rb_ros_line_follower/best.pt
+[INFO] [1785438295.451029994] [object_recognizer]: Object Recognizer Node started. Waiting for images...
+^CTraceback (most recent call last):
+File "/home/edith/cognipilot/cranium/install/b3rb_ros_line_follower/lib/b3rb_ros_line_follower/detect", line 33, in <module>
+sys.exit(load_entry_point('b3rb-ros-line-follower==0.0.0', 'console_scripts', 'detect')())
+File "/home/edith/cognipilot/cranium/install/b3rb_ros_line_follower/lib/python3.10/site-packages/b3rb_ros_line_follower/b3rb_ros_object_recog.py", line 340, in main
+rclpy.shutdown()
+File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/__init__.py", line 130, in shutdown
+_shutdown(context=context)
+File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/utilities.py", line 58, in shutdown
+return context.shutdown()
+File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/context.py", line 102, in shutdown
+self.__context.shutdown()
+rclpy._rclpy_pybind11.RCLError: failed to shutdown: rcl_shutdown already called on the given context, at ./src/rcl/init.c:241
+[ros2run]: Process exited with failure 1
+edith@ubuntu:~/cognipilot/cranium$ ros2 run b3rb_ros_line_follower detect
+[INFO] [1785438344.899554930] [object_recognizer]: Loaded YOLOv8 model from /home/edith/cognipilot/cranium/src/b3rb_ros_line_follower/b3rb_ros_line_follower/b3rb_ros_line_follower/best.pt
+[INFO] [1785438344.900188162] [object_recognizer]: Object Recognizer Node started. Waiting for images...
+[INFO] [1785438451.324149699] [object_recognizer]: Detected Sign Board: C_RIGHT
+[INFO] [1785438464.400326340] [object_recognizer]: Detected Sign Board: X_RIGHT
+[INFO] [1785438465.818426187] [object_recognizer]: Detected Sign Board: X_RIGHT
+[INFO] [1785438467.994221753] [object_recognizer]: Detected Sign Board: X_RIGHT
+[INFO] [1785438470.178556143] [object_recognizer]: Detected Sign Board: X_RIGHT
+[INFO] [1785438472.667460659] [object_recognizer]: Detected Sign Board: X_RIGHT
+[INFO] [1785438474.713145673] [object_recognizer]: Detected Sign Board: X_RIGHT
+
+
+edith@ubuntu:~/cognipilot/cranium$ source ~/cognipilot/cranium/install/setup.bash
+ros2 run b3rb_ros_line_follower runner
+[INFO] [1785438287.259546856] [line_follower]: Ambulance Brain online. Targeting PATIENT_1 first.
+[INFO] [1785438288.215115235] [line_follower]: [steer] spd=0.33 turn=-0.36 | front=1.77m infl=0.12 sign_guide=None
+[INFO] [1785438289.215351287] [line_follower]: [steer] spd=0.33 turn=-0.36 | front=1.76m infl=0.12 sign_guide=None
+[INFO] [1785438290.216484425] [line_follower]: [steer] spd=0.74 turn=0.07 | front=3.93m infl=0.00 sign_guide=None
+[INFO] [1785438290.360354308] [line_follower]: Sign seen: C_STRAIGHT
+[INFO] [1785438291.215286192] [line_follower]: [steer] spd=0.25 turn=0.04 | front=1.25m infl=0.36 sign_guide=None
+[INFO] [1785438291.262721429] [line_follower]: Sign seen: X_RIGHT
+[INFO] [1785438292.096405766] [line_follower]: Sign seen: X_RIGHT
+[INFO] [1785438292.215154887] [line_follower]: [steer] spd=0.75 turn=-0.02 | front=3.60m infl=0.00 sign_guide=None
+[INFO] [1785438293.215134651] [line_follower]: [steer] spd=0.75 turn=-0.03 | front=3.10m infl=0.00 sign_guide=None
+[INFO] [1785438293.870569531] [line_follower]: Sign seen: X_RIGHT
+[INFO] [1785438294.214921920] [line_follower]: [steer] spd=0.75 turn=0.02 | front=2.77m infl=0.00 sign_guide=None
+[INFO] [1785438295.214945881] [line_follower]: [steer] spd=0.50 turn=-0.00 | front=2.42m infl=0.00 sign_guide=None
+[INFO] [1785438296.215828075] [line_follower]: [steer] spd=0.75 turn=0.01 | front=6.68m infl=0.00 sign_guide=None
+[INFO] [1785438296.765064643] [line_follower]: Sign seen: B_STRAIGHT
+[INFO] [1785438297.217545467] [line_follower]: [steer] spd=0.75 turn=0.01 | front=7.49m infl=0.00 sign_guide=None
+[INFO] [1785438298.215906103] [line_follower]: [steer] spd=0.75 turn=0.03 | front=6.10m infl=0.00 sign_guide=None
+[INFO] [1785438299.215199834] [line_follower]: [steer] spd=0.75 turn=0.05 | front=5.90m infl=0.00 sign_guide=None
+[INFO] [1785438300.215102967] [line_follower]: [steer] spd=0.75 turn=0.06 | front=6.75m infl=0.00 sign_guide=None
+[INFO] [1785438301.214761491] [line_follower]: [steer] spd=0.74 turn=0.10 | front=6.45m infl=0.00 sign_guide=None
+[INFO] [1785438302.214951169] [line_follower]: [steer] spd=0.74 turn=0.12 | front=6.16m infl=0.00 sign_guide=None
+[INFO] [1785438311.014395083] [line_follower]: [steer] spd=0.25 turn=1.79 | front=2.79m infl=0.00 sign_guide=None
+[INFO] [1785438312.014527288] [line_follower]: [steer] spd=0.46 turn=0.12 | front=2.62m infl=0.00 sign_guide=None
+[INFO] [1785438313.015914090] [line_follower]: [steer] spd=0.75 turn=0.00 | front=2.91m infl=0.00 sign_guide=None
+[INFO] [1785438314.014518074] [line_follower]: [steer] spd=0.45 turn=-0.17 | front=2.47m infl=0.00 sign_guide=None
+[INFO] [1785438315.015419108] [line_follower]: [steer] spd=0.43 turn=-0.43 | front=2.24m infl=0.01 sign_guide=None
+[INFO] [1785438316.014443217] [line_follower]: [steer] spd=0.75 turn=0.03 | front=3.48m infl=0.00 sign_guide=None
+[INFO] [1785438317.014656569] [line_follower]: [steer] spd=0.49 turn=-0.23 | front=3.08m infl=0.00 sign_guide=None
+[INFO] [1785438318.014641798] [line_follower]: [steer] spd=0.74 turn=-0.05 | front=2.85m infl=0.00 sign_guide=None
+[INFO] [1785438319.014374446] [line_follower]: [steer] spd=0.46 turn=-0.07 | front=2.49m infl=0.02 sign_guide=None
+[INFO] [1785438320.014481360] [line_follower]: [steer] spd=0.46 turn=-0.02 | front=2.24m infl=0.02 sign_guide=None
+[INFO] [1785438321.015665673] [line_follower]: [steer] spd=0.42 turn=-0.02 | front=2.05m infl=0.05 sign_guide=None
+[INFO] [1785438322.014502194] [line_follower]: [steer] spd=0.42 turn=-0.02 | front=2.05m infl=0.05 sign_guide=None
+[INFO] [1785438323.014491162] [line_follower]: [steer] spd=0.43 turn=-0.02 | front=2.06m infl=0.05 sign_guide=None
+[INFO] [1785438324.014694336] [line_follower]: [steer] spd=0.43 turn=-0.02 | front=2.05m infl=0.05 sign_guide=None
+[INFO] [1785438325.015328771] [line_follower]: [steer] spd=0.43 turn=-0.02 | front=2.02m infl=0.06 sign_guide=None
+[INFO] [1785438326.014383653] [line_follower]: [steer] spd=0.38 turn=-0.02 | front=1.88m infl=0.10 sign_guide=None
+[INFO] [1785438327.014790710] [line_follower]: [steer] spd=0.33 turn=0.06 | front=1.66m infl=0.18 sign_guide=None
+[INFO] [1785438328.014328535] [line_follower]: [steer] spd=0.34 turn=0.11 | front=1.66m infl=0.17 sign_guide=None
+[INFO] [1785438329.014430176] [line_follower]: [steer] spd=0.45 turn=0.06 | front=2.17m infl=0.03 sign_guide=None
+[INFO] [1785438330.014835843] [line_follower]: [steer] spd=0.42 turn=-0.01 | front=2.06m infl=0.05 sign_guide=None
+[INFO] [1785438331.014555897] [line_follower]: [steer] spd=0.75 turn=0.04 | front=2.82m infl=0.00 sign_guide=None
+[INFO] [1785438332.014425249] [line_follower]: [steer] spd=0.71 turn=-0.03 | front=2.48m infl=0.02 sign_guide=None
+[INFO] [1785438333.014999943] [line_follower]: [steer] spd=0.46 turn=-0.00 | front=2.17m infl=0.03 sign_guide=None
+[INFO] [1785438334.015042373] [line_follower]: [steer] spd=0.40 turn=0.02 | front=1.91m infl=0.09 sign_guide=None
+[INFO] [1785438335.014663688] [line_follower]: [steer] spd=0.34 turn=0.07 | front=1.69m infl=0.17 sign_guide=None
+[INFO] [1785438336.015153229] [line_follower]: [steer] spd=0.22 turn=0.79 | front=1.44m infl=0.24 sign_guide=None
+[INFO] [1785438337.014436835] [line_follower]: [steer] spd=0.26 turn=0.25 | front=1.28m infl=0.36 sign_guide=None
+[INFO] [1785438338.015181390] [line_follower]: [steer] spd=0.20 turn=0.16 | front=1.11m infl=0.45 sign_guide=None
+[INFO] [1785438339.014876537] [line_follower]: [steer] spd=0.17 turn=-0.24 | front=0.99m infl=0.53 sign_guide=None
+[INFO] [1785438340.014849755] [line_follower]: [steer] spd=0.16 turn=-0.63 | front=0.86m infl=0.63 sign_guide=None
+[INFO] [1785438341.015407687] [line_follower]: [steer] spd=0.14 turn=-0.93 | front=0.76m infl=0.71 sign_guide=None
+[INFO] [1785438342.014661916] [line_follower]: [steer] spd=0.21 turn=-1.03 | front=1.64m infl=0.10 sign_guide=None
+[INFO] [1785438343.014593659] [line_follower]: [steer] spd=0.10 turn=-1.56 | front=0.57m infl=0.88 sign_guide=None
+[INFO] [1785438344.014804165] [line_follower]: [steer] spd=0.26 turn=-0.81 | front=1.39m infl=0.28 sign_guide=None
+[INFO] [1785438345.014518462] [line_follower]: [steer] spd=0.22 turn=-0.82 | front=1.27m infl=0.35 sign_guide=None
+[INFO] [1785438346.014795738] [line_follower]: [steer] spd=0.22 turn=-0.66 | front=1.11m infl=0.45 sign_guide=None
+[INFO] [1785438347.014401237] [line_follower]: [steer] spd=0.18 turn=-1.59 | front=1.01m infl=0.51 sign_guide=None
+[INFO] [1785438348.014395434] [line_follower]: [steer] spd=0.10 turn=-1.31 | front=0.92m infl=0.56 sign_guide=None
+[INFO] [1785438349.014637891] [line_follower]: [steer] spd=0.10 turn=-0.56 | front=0.87m infl=0.60 sign_guide=None
+[INFO] [1785438350.014479062] [line_follower]: [steer] spd=0.10 turn=-1.49 | front=0.83m infl=0.64 sign_guide=None
+[INFO] [1785438351.014701551] [line_follower]: [steer] spd=0.10 turn=-1.09 | front=0.77m infl=0.69 sign_guide=None
+[INFO] [1785438352.014412962] [line_follower]: [steer] spd=0.10 turn=-0.68 | front=0.73m infl=0.73 sign_guide=None
+[INFO] [1785438353.014508474] [line_follower]: [steer] spd=0.10 turn=-0.34 | front=0.69m infl=0.76 sign_guide=None
+[INFO] [1785438354.014628097] [line_follower]: [steer] spd=0.10 turn=0.16 | front=0.64m infl=0.81 sign_guide=None
+[INFO] [1785438355.014468141] [line_follower]: [steer] spd=0.10 turn=0.62 | front=0.60m infl=0.85 sign_guide=None
+[INFO] [1785438356.014596197] [line_follower]: [steer] spd=0.10 turn=1.03 | front=0.56m infl=0.89 sign_guide=None
+[INFO] [1785438357.014569258] [line_follower]: [steer] spd=0.12 turn=0.01 | front=3.17m infl=0.00 sign_guide=None
+[INFO] [1785438358.014552608] [line_follower]: [steer] spd=0.12 turn=0.01 | front=3.10m infl=0.00 sign_guide=None
+[INFO] [1785438359.014287471] [line_follower]: [steer] spd=0.12 turn=0.01 | front=3.05m infl=0.00 sign_guide=None
+[INFO] [1785438360.014356916] [line_follower]: [steer] spd=0.12 turn=0.01 | front=2.97m infl=0.00 sign_guide=None
+[INFO] [1785438361.014394437] [line_follower]: [steer] spd=0.12 turn=0.01 | front=2.91m infl=0.00 sign_guide=None
+[INFO] [1785438362.014618046] [line_follower]: [steer] spd=0.12 turn=0.01 | front=2.84m infl=0.00 sign_guide=None
+[INFO] [1785438363.015325109] [line_follower]: [steer] spd=0.12 turn=0.01 | front=2.76m infl=0.00 sign_guide=None
+[INFO] [1785438364.014540677] [line_follower]: [steer] spd=0.12 turn=0.19 | front=2.69m infl=0.00 sign_guide=None
+[INFO] [1785438365.014533846] [line_follower]: [steer] spd=0.12 turn=0.39 | front=2.63m infl=0.00 sign_guide=None
+[INFO] [1785438366.015517002] [line_follower]: [steer] spd=0.12 turn=0.40 | front=2.56m infl=0.00 sign_guide=None
+[INFO] [1785438367.014940170] [line_follower]: [steer] spd=0.12 turn=0.35 | front=2.49m infl=0.00 sign_guide=None
+[INFO] [1785438368.015890700] [line_follower]: [steer] spd=0.12 turn=0.29 | front=2.42m infl=0.00 sign_guide=None
+[INFO] [1785438369.015569080] [line_follower]: [steer] spd=0.12 turn=0.25 | front=2.36m infl=0.00 sign_guide=None
+[INFO] [1785438370.014714874] [line_follower]: [steer] spd=0.12 turn=0.22 | front=2.30m infl=0.00 sign_guide=None
+[INFO] [1785438371.015241966] [line_follower]: [steer] spd=0.12 turn=0.19 | front=2.23m infl=0.00 sign_guide=None
+[INFO] [1785438372.014296082] [line_follower]: [steer] spd=0.12 turn=0.17 | front=2.17m infl=0.00 sign_guide=None
+[INFO] [1785438373.014442618] [line_follower]: [steer] spd=0.12 turn=0.15 | front=2.11m infl=0.00 sign_guide=None
+[INFO] [1785438374.014912653] [line_follower]: [steer] spd=0.12 turn=0.13 | front=2.06m infl=0.00 sign_guide=None
+[INFO] [1785438375.014390588] [line_follower]: [steer] spd=0.40 turn=0.10 | front=1.97m infl=0.08 sign_guide=None
+[INFO] [1785438376.014367952] [line_follower]: [steer] spd=0.37 turn=0.09 | front=1.84m infl=0.11 sign_guide=None
+[INFO] [1785438377.015483281] [line_follower]: [steer] spd=0.37 turn=0.07 | front=1.79m infl=0.12 sign_guide=None
+[INFO] [1785438378.014499305] [line_follower]: [steer] spd=0.33 turn=0.07 | front=1.55m infl=0.22 sign_guide=None
+[INFO] [1785438379.014443145] [line_follower]: [steer] spd=0.29 turn=0.06 | front=1.47m infl=0.26 sign_guide=None
+[INFO] [1785438380.014510079] [line_follower]: [steer] spd=0.25 turn=0.07 | front=1.31m infl=0.33 sign_guide=None
+[INFO] [1785438381.014610902] [line_follower]: [steer] spd=0.12 turn=3.29 | front=1.13m infl=0.40 sign_guide=None
+[INFO] [1785438382.014484727] [line_follower]: [steer] spd=0.17 turn=0.39 | front=1.11m infl=0.44 sign_guide=None
+[INFO] [1785438383.014581588] [line_follower]: [steer] spd=0.15 turn=0.16 | front=1.05m infl=0.47 sign_guide=None
+[INFO] [1785438384.017766982] [line_follower]: [steer] spd=0.18 turn=-0.20 | front=1.04m infl=0.50 sign_guide=None
+[INFO] [1785438385.014482964] [line_follower]: [steer] spd=0.36 turn=-0.54 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438386.014802057] [line_follower]: [steer] spd=0.16 turn=-0.16 | front=0.98m infl=0.55 sign_guide=None
+[INFO] [1785438387.014509051] [line_follower]: [steer] spd=0.43 turn=-0.34 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438388.014540708] [line_follower]: [steer] spd=0.75 turn=0.04 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438389.014646917] [line_follower]: [steer] spd=0.75 turn=0.02 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438390.014566034] [line_follower]: [steer] spd=0.75 turn=-0.02 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438391.014588728] [line_follower]: [steer] spd=0.75 turn=0.04 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438392.014543176] [line_follower]: [steer] spd=0.75 turn=0.02 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438393.014452829] [line_follower]: [steer] spd=0.75 turn=0.04 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438394.017704890] [line_follower]: [steer] spd=0.75 turn=0.06 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438395.014366801] [line_follower]: [steer] spd=0.75 turn=0.10 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438396.014384244] [line_follower]: [steer] spd=0.48 turn=0.18 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438397.016078339] [line_follower]: [steer] spd=0.75 turn=0.09 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438398.014494141] [line_follower]: [steer] spd=0.75 turn=0.11 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438399.014436398] [line_follower]: [steer] spd=0.75 turn=0.06 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438400.015016499] [line_follower]: [steer] spd=0.49 turn=0.05 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438401.014659561] [line_follower]: [steer] spd=0.75 turn=0.12 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438402.014459910] [line_follower]: [steer] spd=0.49 turn=0.20 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438403.014352398] [line_follower]: [steer] spd=0.47 turn=0.21 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438404.014627157] [line_follower]: [steer] spd=0.48 turn=0.13 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438405.014402569] [line_follower]: [steer] spd=0.74 turn=0.29 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438406.014942208] [line_follower]: [steer] spd=0.74 turn=0.27 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438407.014653375] [line_follower]: [steer] spd=0.47 turn=0.14 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438408.014422556] [line_follower]: [steer] spd=0.49 turn=-0.04 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438409.014406728] [line_follower]: [steer] spd=0.46 turn=0.21 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438410.014333594] [line_follower]: [steer] spd=0.45 turn=0.23 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438411.014437951] [line_follower]: [steer] spd=0.74 turn=0.04 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438412.014373308] [line_follower]: [steer] spd=0.47 turn=0.25 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438413.014547014] [line_follower]: [steer] spd=0.75 turn=0.00 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438414.014571522] [line_follower]: [steer] spd=0.47 turn=0.19 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438415.014828120] [line_follower]: [steer] spd=0.75 turn=0.04 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438416.015020974] [line_follower]: [steer] spd=0.49 turn=0.06 | front=9.98m infl=0.00 sign_guide=None
+[INFO] [1785438417.014624860] [line_follower]: [steer] spd=0.49 turn=0.10 | front=9.35m infl=0.00 sign_guide=None
+[INFO] [1785438418.017474597] [line_follower]: [steer] spd=0.74 turn=0.08 | front=8.68m infl=0.00 sign_guide=None
+[INFO] [1785438419.014748659] [line_follower]: [steer] spd=0.46 turn=-0.10 | front=8.41m infl=0.00 sign_guide=None
+[INFO] [1785438420.014965504] [line_follower]: [steer] spd=0.50 turn=0.01 | front=7.98m infl=0.00 sign_guide=None
+[INFO] [1785438421.014502951] [line_follower]: [steer] spd=0.75 turn=-0.03 | front=7.52m infl=0.00 sign_guide=None
+[INFO] [1785438422.014543827] [line_follower]: [steer] spd=0.75 turn=0.02 | front=7.21m infl=0.00 sign_guide=None
+[INFO] [1785438423.014332967] [line_follower]: [steer] spd=0.74 turn=0.11 | front=6.95m infl=0.00 sign_guide=None
+[INFO] [1785438424.014427641] [line_follower]: [steer] spd=0.49 turn=0.11 | front=6.56m infl=0.00 sign_guide=None
+[INFO] [1785438425.015030665] [line_follower]: [steer] spd=0.75 turn=-0.20 | front=6.29m infl=0.00 sign_guide=None
+[INFO] [1785438426.014471735] [line_follower]: [steer] spd=0.49 turn=0.10 | front=6.02m infl=0.00 sign_guide=None
+[INFO] [1785438427.014746739] [line_follower]: [steer] spd=0.46 turn=0.10 | front=5.80m infl=0.00 sign_guide=None
+[INFO] [1785438428.016500014] [line_follower]: [steer] spd=0.46 turn=0.23 | front=5.59m infl=0.00 sign_guide=None
+[INFO] [1785438429.014326367] [line_follower]: [steer] spd=0.75 turn=0.02 | front=5.32m infl=0.00 sign_guide=None
+[INFO] [1785438430.014601148] [line_follower]: [steer] spd=0.49 turn=0.14 | front=4.98m infl=0.00 sign_guide=None
+[INFO] [1785438431.014582312] [line_follower]: [steer] spd=0.75 turn=0.03 | front=4.76m infl=0.00 sign_guide=None
+[INFO] [1785438432.017869825] [line_follower]: [steer] spd=0.74 turn=0.07 | front=4.33m infl=0.00 sign_guide=None
+[INFO] [1785438433.014752264] [line_follower]: [steer] spd=0.47 turn=-0.10 | front=3.95m infl=0.00 sign_guide=None
+[INFO] [1785438434.014548827] [line_follower]: [steer] spd=0.74 turn=0.12 | front=3.72m infl=0.00 sign_guide=None
+[INFO] [1785438435.014406238] [line_follower]: [steer] spd=0.74 turn=0.05 | front=3.36m infl=0.00 sign_guide=None
+[INFO] [1785438436.014834560] [line_follower]: [steer] spd=0.48 turn=0.18 | front=3.01m infl=0.00 sign_guide=None
+[INFO] [1785438437.014406866] [line_follower]: [steer] spd=0.47 turn=0.16 | front=2.78m infl=0.00 sign_guide=None
+[INFO] [1785438438.014581152] [line_follower]: [steer] spd=0.43 turn=0.11 | front=2.50m infl=0.03 sign_guide=None
+[INFO] [1785438439.014557505] [line_follower]: [steer] spd=0.45 turn=0.11 | front=2.19m infl=0.02 sign_guide=None
+[INFO] [1785438440.014628207] [line_follower]: [steer] spd=0.41 turn=0.03 | front=1.99m infl=0.07 sign_guide=None
+[INFO] [1785438441.014327755] [line_follower]: [steer] spd=0.36 turn=0.08 | front=1.75m infl=0.14 sign_guide=None
+[INFO] [1785438442.014466441] [line_follower]: [steer] spd=0.35 turn=0.07 | front=1.72m infl=0.15 sign_guide=None
+[INFO] [1785438443.014436124] [line_follower]: [steer] spd=0.33 turn=0.06 | front=1.65m infl=0.17 sign_guide=None
+[INFO] [1785438444.014608507] [line_follower]: [steer] spd=0.34 turn=0.05 | front=1.66m infl=0.17 sign_guide=None
+[INFO] [1785438445.014405209] [line_follower]: [steer] spd=0.33 turn=0.05 | front=1.66m infl=0.17 sign_guide=None
+[INFO] [1785438446.014337752] [line_follower]: [steer] spd=0.35 turn=-0.03 | front=1.69m infl=0.16 sign_guide=None
+[INFO] [1785438447.014626573] [line_follower]: [steer] spd=0.38 turn=-0.06 | front=1.82m infl=0.10 sign_guide=None
+[INFO] [1785438448.015580264] [line_follower]: [steer] spd=0.35 turn=0.02 | front=1.73m infl=0.15 sign_guide=None
+[INFO] [1785438449.014894763] [line_follower]: [steer] spd=0.32 turn=0.04 | front=1.58m infl=0.21 sign_guide=None
+[INFO] [1785438450.014903817] [line_follower]: [steer] spd=0.36 turn=0.03 | front=1.71m infl=0.14 sign_guide=None
+[INFO] [1785438451.014613291] [line_follower]: [steer] spd=0.32 turn=0.01 | front=1.63m infl=0.18 sign_guide=None
+[INFO] [1785438451.327772685] [line_follower]: Sign seen: C_RIGHT
+[INFO] [1785438452.014474136] [line_follower]: [steer] spd=0.32 turn=0.01 | front=1.63m infl=0.18 sign_guide=None
+[INFO] [1785438453.014471746] [line_follower]: [steer] spd=0.28 turn=0.04 | front=1.48m infl=0.25 sign_guide=None
+[INFO] [1785438454.014458630] [line_follower]: [steer] spd=0.39 turn=-0.01 | front=1.78m infl=0.09 sign_guide=None
+[INFO] [1785438455.014424480] [line_follower]: [steer] spd=0.37 turn=0.07 | front=1.17m infl=0.46 sign_guide=None
+[INFO] [1785438456.016446185] [line_follower]: [steer] spd=0.33 turn=0.25 | front=1.05m infl=0.53 sign_guide=None
+[INFO] [1785438457.014830407] [line_follower]: [steer] spd=0.31 turn=-0.05 | front=1.50m infl=0.24 sign_guide=None
+[INFO] [1785438458.016477454] [line_follower]: [steer] spd=0.27 turn=-0.06 | front=1.95m infl=0.03 sign_guide=None
+[INFO] [1785438459.014395363] [line_follower]: [steer] spd=0.24 turn=0.04 | front=1.20m infl=0.40 sign_guide=None
+[INFO] [1785438460.014655979] [line_follower]: [steer] spd=0.22 turn=0.06 | front=1.10m infl=0.46 sign_guide=None
+[INFO] [1785438461.014378145] [line_follower]: [steer] spd=0.31 turn=0.07 | front=1.57m infl=0.21 sign_guide=None
+[INFO] [1785438461.419369516] [line_follower]: Sign seen: C_RIGHT
+[INFO] [1785438462.017276616] [line_follower]: [steer] spd=0.28 turn=-0.13 | front=1.39m infl=0.29 sign_guide=None
+[INFO] [1785438463.014643469] [line_follower]: [steer] spd=0.24 turn=0.02 | front=1.83m infl=0.06 sign_guide=None
+[INFO] [1785438464.014471001] [line_follower]: [steer] spd=0.22 turn=0.10 | front=1.70m infl=0.11 sign_guide=None
+[INFO] [1785438464.400073841] [line_follower]: Sign seen: X_RIGHT
+[INFO] [1785438464.585535242] [line_follower]: Sign seen: X_RIGHT
+[INFO] [1785438465.014492113] [line_follower]: [steer] spd=0.35 turn=0.01 | front=1.56m infl=0.23 sign_guide=None
+[INFO] [1785438465.815342797] [line_follower]: Sign seen: X_RIGHT
+[INFO] [1785438466.014459143] [line_follower]: [steer] spd=0.27 turn=-0.19 | front=1.40m infl=0.29 sign_guide=None
+[INFO] [1785438467.014370694] [line_follower]: [steer] spd=0.22 turn=-0.10 | front=1.27m infl=0.44 sign_guide=None
+[INFO] [1785438467.770193286] [line_follower]: Sign seen: X_RIGHT
+[INFO] [1785438467.992207963] [line_follower]: Sign seen: X_RIGHT
+[INFO] [1785438468.014372736] [line_follower]: [steer] spd=0.50 turn=0.05 | front=4.07m infl=0.00 sign_guide=None
+[INFO] [1785438469.015193710] [line_follower]: [steer] spd=0.75 turn=-0.04 | front=3.84m infl=0.00 sign_guide=None
+[INFO] [1785438470.014369032] [line_follower]: [steer] spd=0.75 turn=0.03 | front=3.48m infl=0.00 sign_guide=None
+[INFO] [1785438470.179677308] [line_follower]: Sign seen: X_RIGHT
+[INFO] [1785438471.014569540] [line_follower]: [steer] spd=0.75 turn=-0.00 | front=3.12m infl=0.00 sign_guide=None
+[INFO] [1785438472.014372483] [line_follower]: [steer] spd=0.75 turn=0.02 | front=2.70m infl=0.00 sign_guide=None
+[INFO] [1785438472.665952549] [line_follower]: Sign seen: X_RIGHT
+[INFO] [1785438473.014498765] [line_follower]: [steer] spd=0.50 turn=0.00 | front=2.39m infl=0.00 sign_guide=None
+[INFO] [1785438474.014378498] [line_follower]: [steer] spd=0.75 turn=0.00 | front=4.36m infl=0.00 sign_guide=None
+[INFO] [1785438474.713266239] [line_follower]: Sign seen: X_RIGHT
+[INFO] [1785438474.779194613] [line_follower]: Sign seen: X_RIGHT
+[INFO] [1785438475.014329995] [line_follower]: [steer] spd=0.75 turn=0.02 | front=3.99m infl=0.00 sign_guide=None
+[INFO] [1785438476.014540939] [line_follower]: [steer] spd=0.75 turn=0.02 | front=3.64m infl=0.00 sign_guide=None
+[INFO] [1785438477.014494153] [line_follower]: [steer] spd=0.75 turn=0.03 | front=3.19m infl=0.00 sign_guide=None
+[INFO] [1785438481.814999937] [line_follower]: [steer] spd=0.34 turn=-0.63 | front=1.85m infl=0.11 sign_guide=None
+[INFO] [1785438482.814556831] [line_follower]: [steer] spd=0.32 turn=-0.10 | front=1.69m infl=0.16 sign_guide=None
+[INFO] [1785438483.814604948] [line_follower]: [steer] spd=0.21 turn=1.08 | front=1.59m infl=0.17 sign_guide=None
+[INFO] [1785438484.814622438] [line_follower]: [steer] spd=0.17 turn=-1.42 | front=1.52m infl=0.19 sign_guide=None
+[INFO] [1785438485.814416426] [line_follower]: [steer] spd=0.74 turn=0.57 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438486.814440803] [line_follower]: [steer] spd=0.49 turn=-0.26 | front=infm infl=0.00 sign_guide=None
+[INFO] [1785438487.814819695] [line_follower]: [steer] spd=0.25 turn=2.26 | front=infm infl=0.00 sign_guide=None
+
+edith@ubuntu:~/cognipilot/cranium$ source ~/cognipilot/cranium/install/setup.bash
+ros2 run b3rb_ros_line_follower qr_detect
+[INFO] [1785438257.641557702] [qr_detector]: QR Detector Node started. Waiting for images...
+[WARN] [1785438257.642900193] [qr_detector]: pyzbar not installed - falling back to OpenCV QRCodeDetector. pip install pyzbar for better detection robustness.
+[INFO] [1785438356.029709696] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438356.079687482] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438356.774954622] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438356.923311936] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438357.208693352] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438357.844727627] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438357.892813065] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438358.422796456] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438358.827289276] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438359.125959231] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438359.243175328] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438359.536990558] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438359.627798675] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438359.845815428] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438359.888430960] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438360.169090279] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438360.556446032] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438360.620576485] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438360.672063019] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438360.730582224] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438360.831316682] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438360.914020659] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438360.971638591] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438361.595146664] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438361.666716056] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438361.715252499] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438361.853114575] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.117067436] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.143093537] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.185614939] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.517958288] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.559778791] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.676835456] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.868670060] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.915065727] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.989322829] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438363.316243786] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438363.353572304] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438363.481258331] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438363.543363774] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438363.753832366] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438363.820895054] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438363.867512220] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438363.921536447] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438364.002508938] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438364.043773282] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438364.134412655] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438364.293064607] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438364.359883830] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438364.652171593] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438364.781984830] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.008424909] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.229992620] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.309067054] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.357121063] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.407641705] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.464984328] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.535289621] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.669762442] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.719125445] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.779925921] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.829170818] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.945393137] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438366.875290792] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438366.937616661] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.003497716] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.118000080] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.178743315] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.235536535] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.296658762] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.347272741] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.375096372] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.409088873] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.465193030] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.516246310] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.576741007] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.645580105] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.685879746] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.740807244] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.935247550] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.120756695] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.318759741] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.451986988] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.509032993] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.521966879] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.596185236] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.637662377] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.703386081] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.756042468] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.890281888] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.962889300] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.020496087] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.239970959] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.290303105] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.340066750] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.414918392] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.493563417] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.573972210] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.607372979] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.739244935] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.809505440] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.912121757] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.006224034] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.074724390] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.135931546] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.215922565] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.263522285] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.444981585] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.511560490] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.579778992] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.655189708] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.853660927] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.916317738] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.001182538] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.126789754] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.208490097] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.366044035] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.427930505] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.491224310] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.560957008] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.693584925] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.749868351] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.790639209] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.819619060] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.921787826] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.953534845] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438372.048874902] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438372.123191729] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438372.172637381] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438372.317748792] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438372.331453521] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438372.375235989] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+
+edith@ubuntu:~/cognipilot/cranium$ source ~/cognipilot/cranium/install/setup.bash
+ros2 run b3rb_ros_line_follower qr_detect
+[INFO] [1785438257.641557702] [qr_detector]: QR Detector Node started. Waiting for images...
+[WARN] [1785438257.642900193] [qr_detector]: pyzbar not installed - falling back to OpenCV QRCodeDetector. pip install pyzbar for better detection robustness.
+[INFO] [1785438356.029709696] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438356.079687482] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438356.774954622] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438356.923311936] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438357.208693352] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438357.844727627] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438357.892813065] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438358.422796456] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438358.827289276] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438359.125959231] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438359.243175328] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438359.536990558] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438359.627798675] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438359.845815428] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438359.888430960] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438360.169090279] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438360.556446032] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438360.620576485] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438360.672063019] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438360.730582224] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438360.831316682] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438360.914020659] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438360.971638591] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438361.595146664] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438361.666716056] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438361.715252499] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438361.853114575] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.117067436] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.143093537] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.185614939] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.517958288] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.559778791] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.676835456] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.868670060] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.915065727] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438362.989322829] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438363.316243786] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438363.353572304] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438363.481258331] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438363.543363774] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438363.753832366] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438363.820895054] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438363.867512220] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438363.921536447] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438364.002508938] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438364.043773282] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438364.134412655] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438364.293064607] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438364.359883830] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438364.652171593] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438364.781984830] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.008424909] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.229992620] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.309067054] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.357121063] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.407641705] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.464984328] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.535289621] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.669762442] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.719125445] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.779925921] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.829170818] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438365.945393137] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438366.875290792] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438366.937616661] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.003497716] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.118000080] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.178743315] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.235536535] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.296658762] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.347272741] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.375096372] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.409088873] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.465193030] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.516246310] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.576741007] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.645580105] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.685879746] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.740807244] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438367.935247550] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.120756695] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.318759741] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.451986988] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.509032993] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.521966879] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.596185236] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.637662377] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.703386081] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.756042468] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.890281888] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438368.962889300] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.020496087] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.239970959] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.290303105] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.340066750] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.414918392] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.493563417] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.573972210] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.607372979] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.739244935] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.809505440] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438369.912121757] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.006224034] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.074724390] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.135931546] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.215922565] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.263522285] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.444981585] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.511560490] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.579778992] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.655189708] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.853660927] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438370.916317738] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.001182538] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.126789754] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.208490097] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.366044035] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.427930505] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.491224310] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.560957008] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.693584925] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.749868351] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.790639209] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.819619060] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.921787826] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438371.953534845] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438372.048874902] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438372.123191729] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438372.172637381] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438372.317748792] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438372.331453521] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+[INFO] [1785438372.375235989] [qr_detector]: Published QR Data: {LOC: PATIENT_2}
+
+edith@ubuntu:~/cognipilot/cranium$ source ~/cognipilot/cranium/install/setup.bash
+ros2 launch b3rb_gz_bringup sil.launch.py world:=Raceway_1
+[INFO] [launch]: All log files can be found below /home/edith/.ros/log/2026-07-31-00-33-09-603706-ubuntu-10517
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [robot_state_publisher-1]: process started with pid [10518]
+[INFO] [synapse_ros-2]: process started with pid [10520]
+[INFO] [synapse_gz-3]: process started with pid [10522]
+[INFO] [ruby $(which gz) sim-4]: process started with pid [10524]
+[INFO] [cerebri-5]: process started with pid [10526]
+[INFO] [parameter_bridge-6]: process started with pid [10529]
+[INFO] [image_bridge-7]: process started with pid [10531]
+[INFO] [parameter_bridge-8]: process started with pid [10533]
+[INFO] [parameter_bridge-9]: process started with pid [10536]
+[INFO] [create-10]: process started with pid [10538]
+[INFO] [controller_server-11]: process started with pid [10540]
+[INFO] [smoother_server-12]: process started with pid [10542]
+[INFO] [planner_server-13]: process started with pid [10544]
+[INFO] [behavior_server-14]: process started with pid [10546]
+[INFO] [bt_navigator-15]: process started with pid [10550]
+[INFO] [waypoint_follower-16]: process started with pid [10560]
+[INFO] [velocity_smoother-17]: process started with pid [10564]
+[INFO] [lifecycle_manager-18]: process started with pid [10566]
+[INFO] [rover_planner-19]: process started with pid [10568]
+[INFO] [odom_to_tf-20]: process started with pid [10576]
+[synapse_gz-3] subscribed to /clock
+[synapse_gz-3] subscribed to /world/default/model/b3rb/link/sensors/sensor/altimeter_sensor/altimeter
+[synapse_gz-3] subscribed to /world/default/model/b3rb/link/sensors/sensor/imu_sensor/imu
+[synapse_gz-3] subscribed to /world/default/model/b3rb/link/sensors/sensor/mag_sensor/magnetometer
+[synapse_gz-3] subscribed to /world/default/model/b3rb/link/sensors/sensor/navsat_sensor/navsat
+[synapse_gz-3] subscribed to /world/default/model/b3rb/joint_state
+[synapse_gz-3] subscribed to /model/b3rb/battery/linear_battery/state
+[synapse_gz-3] publishing to /actuators
+[parameter_bridge-9] [INFO] [1785438189.856961215] [bridge_gz_ros_lidar]: Creating GZ->ROS Bridge: [/world/default/model/b3rb/link/lidar_link/sensor/lidar/scan (gz.msgs.LaserScan) -> /world/default/model/b3rb/link/lidar_link/sensor/lidar/scan (sensor_msgs/msg/LaserScan)] (Lazy 0)
+[parameter_bridge-8] [INFO] [1785438189.858326445] [bridge_gz_ros_camera_info]: Creating GZ->ROS Bridge: [/camera/camera_info (gz.msgs.CameraInfo) -> /camera/camera_info (sensor_msgs/msg/CameraInfo)] (Lazy 0)
+[parameter_bridge-6] [INFO] [1785438189.858538925] [bridge_gz_ros_clock]: Creating GZ->ROS Bridge: [/clock (gz.msgs.Clock) -> /clock (rosgraph_msgs/msg/Clock)] (Lazy 0)
+[synapse_gz-3] tcp connected: 127.0.0.1:4241
+[controller_server-11] [ERROR] [1785438189.992733123] [local_costmap.local_costmap]: The configured inflation radius (0.200) is smaller than the computed inscribed radius (0.402) of your footprint, it is highly recommended to set inflation radius to be at least as big as the inscribed radius to avoid collisions
+[planner_server-13] [ERROR] [1785438190.021665851] [global_costmap.global_costmap]: The configured inflation radius (0.200) is smaller than the computed inscribed radius (0.402) of your footprint, it is highly recommended to set inflation radius to be at least as big as the inscribed radius to avoid collisions
+[ruby $(which gz) sim-4] Warning: Ignoring XDG_SESSION_TYPE=wayland on Gnome. Use QT_QPA_PLATFORM=wayland to run on Wayland anyway.
+[create-10] [INFO] [1785438191.996759834] [ros_gz_sim]: Requested creation of entity.
+[create-10] [INFO] [1785438191.996871975] [ros_gz_sim]: OK creation of entity.
+[INFO] [create-10]: process has finished cleanly [pid 10538]
+
+
+
+
+edith@ubuntu:~$ cd ~/cognipilot/cranium/
+colcon build
+Starting >>> synapse_msgs
+Starting >>> synapse_protobuf
+Starting >>> synapse_tinyframe
+Starting >>> b3rb_gz_bringup
+Starting >>> b3rb_gz_resource
+Starting >>> b3rb_rviz
+Starting >>> b3rb_description
+Starting >>> b3rb_nav2
+Starting >>> cerebri_bringup
+Starting >>> dream_world
+Finished <<< b3rb_gz_bringup [0.14s]
+Finished <<< b3rb_gz_resource [0.17s]
+Finished <<< b3rb_rviz [0.18s]
+Finished <<< b3rb_description [0.19s]
+Finished <<< b3rb_nav2 [0.19s]
+Starting >>> b3rb_desktop
+Starting >>> b3rb_simulator
+Finished <<< cerebri_bringup [0.21s]
+Finished <<< synapse_tinyframe [0.24s]
+Finished <<< dream_world [0.23s]
+Finished <<< synapse_protobuf [0.27s]
+Starting >>> synapse_gz
+Finished <<< b3rb_desktop [0.10s]
+Finished <<< b3rb_simulator [0.11s]
+Finished <<< synapse_gz [0.12s]
+Finished <<< synapse_msgs [0.44s]
+Starting >>> b3rb_ros_line_follower
+Starting >>> corti
+Starting >>> synapse_ros
+Finished <<< synapse_ros [0.33s]
+Finished <<< corti [0.59s]
+Finished <<< b3rb_ros_line_follower [0.79s]
+
+Summary: 16 packages finished [1.43s]
+edith@ubuntu:~/cognipilot/cranium$
