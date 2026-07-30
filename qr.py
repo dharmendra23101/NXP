@@ -1,3 +1,4 @@
+# b3rb_ros_qr_detector.py
 
 import rclpy
 from rclpy.node import Node
@@ -13,11 +14,6 @@ except ImportError:
 
 
 class QRDetector(Node):
-    """
-    ROS 2 Node that scans incoming camera frames for QR codes and publishes
-    the decoded payload string (e.g. 'PATIENT_1', 'HOSPITAL_2') on
-    /qr_detection.
-    """
 
     def __init__(self):
         super().__init__('qr_detector')
@@ -37,6 +33,7 @@ class QRDetector(Node):
         self.clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
 
         self.get_logger().info("QR Detector Node started. Waiting for images...")
+
         if pyzbar is None:
             self.get_logger().warn(
                 "pyzbar not installed - falling back to OpenCV QRCodeDetector. "
@@ -45,6 +42,7 @@ class QRDetector(Node):
     def camera_image_callback(self, message):
         np_arr = np.frombuffer(message.data, np.uint8)
         image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
         if image is None:
             return
 
@@ -61,7 +59,6 @@ class QRDetector(Node):
         return self.clahe.apply(gray)
 
     def detect_qr_code(self, image):
-        # Method 1: OpenCV on raw image
         try:
             data, bbox, _ = self.cv_detector.detectAndDecode(image)
             if bbox is not None and data:
@@ -69,8 +66,8 @@ class QRDetector(Node):
         except Exception as e:
             self.get_logger().debug(f"OpenCV QR (raw) failed: {e}")
 
-        # Method 2: OpenCV on enhanced grayscale
         enhanced = self._preprocess(image)
+
         try:
             data, bbox, _ = self.cv_detector.detectAndDecode(enhanced)
             if bbox is not None and data:
@@ -78,7 +75,6 @@ class QRDetector(Node):
         except Exception as e:
             self.get_logger().debug(f"OpenCV QR (enhanced) failed: {e}")
 
-        # Method 3: pyzbar fallback
         if pyzbar is not None:
             try:
                 decoded_objects = pyzbar.decode(enhanced)
@@ -95,6 +91,7 @@ class QRDetector(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = QRDetector()
+
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
