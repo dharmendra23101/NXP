@@ -39,15 +39,19 @@ TURN_MAX = 1.0
 # TUNE: High-Performance "Ambulance" Velocity & Lane Gains
 # ---------------------------------------------------------------------------
 MAX_BOOST_SPEED = 0.80         # Top speed on wide-open straightaways
-CRUISE_SPEED = 0.55            # Standard forward speed while lane-following
-SLOW_SPEED = 0.15              # Speed while approaching a building / sharp corner
+CRUISE_SPEED = 0.50            # Standard forward speed while lane-following
+SLOW_SPEED = 0.18              # Speed while approaching a building / sharp turn
 AVOID_MIN_SPEED = 0.12         # Speed floor while squeezing past tight obstacles
 
-STEER_KP_BASE = 1.6            # Proportional steering gain at low/mid speeds
-CURVE_KP = 2.0                 # Anticipation gain for upcoming road bends
-SHARP_KP = 2.5                 # Quadratic correction for large drift recovery
+STEER_KP_BASE = 1.8            # Proportional steering gain at low/mid speeds
+CURVE_KP = 2.2                 # Anticipation gain for upcoming road bends
+SHARP_KP = 2.8                 # Quadratic correction for large drift recovery
 
 CAMERA_CENTER_OFFSET_PX = 0.0  # Adjust if camera is slightly off-chassis center
+
+# Distance ratio from the lane edge when following LEFT/RIGHT signs
+# 0.0 = center of road, 0.5 = touching the line. 0.40 keeps a safe gap!
+SAFE_LANE_OFFSET_RATIO = 0.40  
 
 # ---------------------------------------------------------------------------
 # TUNE: Dynamic Physics Obstacle Avoidance (LIDAR)
@@ -67,36 +71,26 @@ LOOKAHEAD_VELOCITY_GAIN = 1.2  # Adds extra meters of lookahead per m/s speed
 AVOID_STEER_SMOOTH_ALPHA = 0.40 # Filter responsiveness for gap tracking
 
 # ---------------------------------------------------------------------------
-# TUNE: Mission Zone & Sign Rules
+# Mission Mapping
 # ---------------------------------------------------------------------------
-QR_CONFIRM_COUNT = 3
-
 SIGN_TO_PATIENT = {"A": "PATIENT_1", "B": "PATIENT_2", "C": "PATIENT_3"}
 SIGN_TO_HOSPITAL = {"X": "HOSPITAL_1", "Y": "HOSPITAL_2", "Z": "HOSPITAL_3"}
-FAKE_HOSPITALS = {"FAKE_HOSPITAL_1", "FAKE_HOSPITAL_2"}
 
 ALL_PATIENTS = ["PATIENT_1", "PATIENT_2", "PATIENT_3"]
 
 # ---------------------------------------------------------------------------
-# Mission States
+# Mission States (Simplified Sequential Path)
 # ---------------------------------------------------------------------------
 S_FIND_PATIENT = "FIND_PATIENT"
-S_CONFIRM_PATIENT = "CONFIRM_PATIENT"
-S_AWAIT_HOSPITAL_ASSIGN = "AWAIT_HOSPITAL"
-S_FIND_HOSPITAL = "FIND_HOSPITAL"
-S_CONFIRM_HOSPITAL = "CONFIRM_HOSPITAL"
-S_AWAIT_NEXT_PATIENT = "AWAIT_NEXT_PATIENT"
 S_MISSION_COMPLETE = "MISSION_COMPLETE"
-S_EXIT_TO_PARKING = "EXIT_TO_PARKING"
-S_PARKED = "PARKED"
 
 
 class LineFollower(Node):
     """
     High-Performance Autonomous Medical Response Controller.
     Features dynamic velocity scaling, physics-informed lookahead obstacle
-    avoidance, curvature-dependent braking, sign-guided fork selection,
-    and full mission state handling.
+    avoidance, curvature-dependent braking, sign-guided safe fork selection,
+    and automatic sequential patient progression (Patient 1 -> 2 -> 3).
     """
 
     def __init__(self):
@@ -125,10 +119,9 @@ class LineFollower(Node):
         self.target_turn = 0.0
         self.current_speed_estimate = 0.0
 
-        # ------------------ Perception state: lane ------------------
+        # ------------------ Perception state: lane & signs ------------------
         self.last_sign = None
-        self.qr_streak_label = None
-        self.qr_streak_count = 0
+        self.sign_timeout_counter = 0
         self.known_lane_half_width = None
         self.smoothed_offset = 0.0
         self._debug_log_counter = 0
@@ -142,20 +135,14 @@ class LineFollower(Node):
         self.avoidance_influence = 0.0
         self.dynamic_far_dist = AVOID_FAR_DIST_BASE
 
-        # ------------------ Mission state ------------------
+        # ------------------ Mission state (Sequential 1 -> 2 -> 3) ------------------
         self.state = S_FIND_PATIENT
-        self.patients_remaining = list(ALL_PATIENTS)
-        self.current_patient = self.patients_remaining[0]
-        self.current_hospital = None
-        self.delivered_count = 0
-
-        # ------------------ Server protocol bookkeeping ------------------
-        self.server_uid_counter = 1
-        self.awaiting_ack_for_uid = None
+        self.patient_index = 0
+        self.current_patient = ALL_PATIENTS[self.patient_index]
 
         # 10 Hz control heartbeat
         self.control_timer = self.create_timer(0.1, self.control_loop)
-        self.get_logger().info(f"Ambulance Brain online. Targeting {self.current_patient} first.")
+        self.get_logger().info(f"Ambulance Brain online. Targeting {self.current_patient} without QR required.")
 
     # =========================================================================
     # LOW-LEVEL DRIVE
@@ -180,10 +167,6 @@ class LineFollower(Node):
         self.last_vectors_msg = message
 
     def lidar_callback(self, message):
-        """
-        Finely sweeps front hemisphere, identifies passable gaps, and computes
-        velocity-scaled avoidance influence so high-speed dodging starts earlier.
-        """
         n = len(message.ranges)
         if n == 0 or message.angle_increment == 0:
             return
@@ -209,7 +192,6 @@ class LineFollower(Node):
         self.left_side_dist = ray_dist(70.0, 15.0)
         self.right_side_dist = ray_dist(-70.0, 15.0)
 
-        # Dynamic lookahead: extend detection horizon when moving fast
         self.dynamic_far_dist = AVOID_FAR_DIST_BASE + (LOOKAHEAD_VELOCITY_GAIN * self.current_speed_estimate)
 
         angles_deg = list(range(-LIDAR_FRONT_HALF_ANGLE_DEG,
@@ -246,7 +228,6 @@ class LineFollower(Node):
             + (1 - AVOID_STEER_SMOOTH_ALPHA) * self.avoid_target_turn
         )
 
-        # Smooth repulsive blend based on dynamic speed-scaled horizon
         if self.front_min_dist >= self.dynamic_far_dist:
             self.avoidance_influence = 0.0
         elif self.front_min_dist <= AVOID_NEAR_DIST:
@@ -258,7 +239,14 @@ class LineFollower(Node):
 
     def sign_board_callback(self, message):
         self.last_sign = message.data
+        self.sign_timeout_counter = 25  # Hold sign instruction active for 2.5 seconds
         self.get_logger().info(f"Sign guidance received: {message.data}")
+
+        # Automatically advance mission if we detect the sign of our current target
+        letter, _ = self.parse_sign(message.data)
+        target_letter = next((k for k, v in SIGN_TO_PATIENT.items() if v == self.current_patient), None)
+        if letter == target_letter:
+            self.advance_mission_target()
 
     def parse_sign(self, sign_str):
         if not sign_str or "_" not in sign_str:
@@ -267,155 +255,50 @@ class LineFollower(Node):
         return letter.strip().upper(), direction.strip().upper()
 
     def qr_detection_callback(self, message):
-        label = message.data
-        if label == self.qr_streak_label:
-            self.qr_streak_count += 1
-        else:
-            self.qr_streak_label = label
-            self.qr_streak_count = 1
-
-        if self.qr_streak_count >= QR_CONFIRM_COUNT:
-            self.handle_confirmed_qr(label)
-
-    def handle_confirmed_qr(self, label):
-        if label in FAKE_HOSPITALS:
-            self.get_logger().warn(f"FAKE HOSPITAL detected ({label}) - ignoring.")
-            return
-
-        if self.state == S_FIND_PATIENT and label == self.current_patient:
-            self.get_logger().info(f"Confirmed patient QR: {label}")
-            self.state = S_CONFIRM_PATIENT
-        elif self.state == S_FIND_HOSPITAL and label == self.current_hospital:
-            self.get_logger().info(f"Confirmed hospital QR: {label}")
-            self.state = S_CONFIRM_HOSPITAL
-        elif self.state == S_FIND_HOSPITAL and label.startswith("HOSPITAL") and label != self.current_hospital:
-            self.get_logger().warn(f"Wrong hospital nearby ({label}), target is {self.current_hospital}.")
-
-    # =========================================================================
-    # SERVER COMMUNICATION
-    # =========================================================================
-
-    def send_server_update(self, text_msg):
-        server_msg = ServerCommunication()
-        server_msg.src = 1
-        server_msg.dest = 2
-        server_msg.uid = self.server_uid_counter
-        server_msg.ack = 0
-        server_msg.msg = text_msg
-        self.awaiting_ack_for_uid = self.server_uid_counter
-        self.server_uid_counter += 1
-        self.publisher_server.publish(server_msg)
-        self.get_logger().info(f"-> Server: {text_msg} (uid={server_msg.uid})")
+        pass  # QR Code scanning bypassed as requested
 
     def server_communication_callback(self, message):
-        if message.dest != 1:
-            return
+        pass  # Server protocol bypassed as requested
 
-        self.get_logger().info(f"<- Server: msg='{message.msg}' ack={message.ack} uid={message.uid}")
-
-        if message.ack == 1 and message.uid == self.awaiting_ack_for_uid:
-            self.awaiting_ack_for_uid = None
-            self.process_server_payload(message.msg)
-            return
-
-        if message.msg:
-            self.process_server_payload(message.msg)
-
-    def process_server_payload(self, payload):
-        payload = payload.strip().upper()
-        if payload == "INVALID":
-            self.get_logger().warn("Server said INVALID - likely outside zone.")
-            return
-
-        if payload.startswith("HOSPITAL_") and self.state == S_AWAIT_HOSPITAL_ASSIGN:
-            self.current_hospital = payload
-            self.get_logger().info(f"Assigned hospital: {self.current_hospital}")
-            self.state = S_FIND_HOSPITAL
-            return
-
-        if payload.startswith("PATIENT_") and self.state == S_AWAIT_NEXT_PATIENT:
-            if payload in self.patients_remaining:
-                self.current_patient = payload
-                self.get_logger().info(f"Next patient assigned: {self.current_patient}")
-                self.state = S_FIND_PATIENT
-            return
+    def advance_mission_target(self):
+        """Advances sequential target: Patient 1 -> Patient 2 -> Patient 3"""
+        if self.patient_index < len(ALL_PATIENTS) - 1:
+            self.patient_index += 1
+            self.current_patient = ALL_PATIENTS[self.patient_index]
+            self.get_logger().info(f">>> Moving to next mission target: {self.current_patient} <<<")
+        else:
+            self.state = S_MISSION_COMPLETE
+            self.get_logger().info(">>> ALL PATIENT PATHS COMPLETED <<<")
 
     # =========================================================================
     # MISSION STATE MACHINE
     # =========================================================================
 
     def control_loop(self):
-        if self.state in (S_FIND_PATIENT, S_FIND_HOSPITAL):
+        if self.sign_timeout_counter > 0:
+            self.sign_timeout_counter -= 1
+        else:
+            self.last_sign = None
+
+        if self.state == S_FIND_PATIENT:
             self.drive_lane_following()
-        elif self.state == S_CONFIRM_PATIENT:
-            self.rover_move_manual_mode(0.0, 0.0)
-            if self.awaiting_ack_for_uid is None:
-                self.send_server_update(self.current_patient)
-                self.state = S_AWAIT_HOSPITAL_ASSIGN
-        elif self.state == S_AWAIT_HOSPITAL_ASSIGN:
-            self.rover_move_manual_mode(0.0, 0.0)
-        elif self.state == S_CONFIRM_HOSPITAL:
-            self.rover_move_manual_mode(0.0, 0.0)
-            if self.awaiting_ack_for_uid is None:
-                self.send_server_update(self.current_hospital)
-                self.on_patient_delivered()
-        elif self.state == S_AWAIT_NEXT_PATIENT:
-            self.rover_move_manual_mode(0.0, 0.0)
         elif self.state == S_MISSION_COMPLETE:
-            self.drive_lane_following()
-            self.state = S_EXIT_TO_PARKING
-        elif self.state == S_EXIT_TO_PARKING:
-            self.drive_lane_following()
-            if self.is_in_parking_area():
-                self.rover_move_manual_mode(0.0, 0.0)
-                self.send_server_update("PARKED")
-                self.state = S_PARKED
-        elif self.state == S_PARKED:
             self.rover_move_manual_mode(0.0, 0.0)
 
         self.publish_drive_commands()
 
-    def is_in_parking_area(self):
-        return False
-
-    def on_patient_delivered(self):
-        self.delivered_count += 1
-        if self.current_patient in self.patients_remaining:
-            self.patients_remaining.remove(self.current_patient)
-        self.get_logger().info(
-            f"Delivered {self.current_patient} -> {self.current_hospital} ({self.delivered_count}/3)")
-
-        self.current_hospital = None
-        if self.delivered_count >= 3:
-            self.state = S_MISSION_COMPLETE
-        else:
-            self.state = S_AWAIT_NEXT_PATIENT
-
     # =========================================================================
-    # DYNAMIC VELOCITY & SIGN-GUIDED LANE / AVOIDANCE CONTROLLER
+    # DYNAMIC VELOCITY & SIGN-GUIDED SAFE LANE / AVOIDANCE CONTROLLER
     # =========================================================================
 
     def drive_lane_following(self):
-        """
-        Computes dynamic 'Ambulance' velocity and blends lane steering with
-        LIDAR avoidance based on a velocity-dependent lookahead horizon.
-        Also biases track centering based on detected sign direction commands.
-        """
         vectors = getattr(self, 'last_vectors_msg', None)
 
         lane_turn = 0.0
         have_lane_signal = False
         curvature_signal = 0.0
 
-        # Determine target destination letter for sign filtering
-        target_letter = None
-        if self.state == S_FIND_PATIENT:
-            target_letter = next(
-                (k for k, v in SIGN_TO_PATIENT.items() if v == self.current_patient), None)
-        elif self.state == S_FIND_HOSPITAL:
-            target_letter = next(
-                (k for k, v in SIGN_TO_HOSPITAL.items() if v == self.current_hospital), None)
-
+        target_letter = next((k for k, v in SIGN_TO_PATIENT.items() if v == self.current_patient), None)
         letter, direction = self.parse_sign(self.last_sign)
         follow_direction = direction if (letter is not None and letter == target_letter) else None
 
@@ -428,15 +311,15 @@ class LineFollower(Node):
                 right_near_x = vectors.vector_2[1].x
                 self.known_lane_half_width = abs(right_near_x - left_near_x) / 2.0
 
-                # PATH SELECTION: Follow specific side boundary when guided by sign arrow
+                # SAFE PATH SELECTION: Track close to the target side WITHOUT crossing the line
                 if follow_direction == "LEFT":
-                    # Track closer to left vector while keeping safe offset
-                    midpoint = left_near_x + (self.known_lane_half_width * 0.6)
+                    # Offset inward from the left boundary
+                    midpoint = left_near_x + (self.known_lane_half_width * (1.0 - SAFE_LANE_OFFSET_RATIO))
                 elif follow_direction == "RIGHT":
-                    # Track closer to right vector while keeping safe offset
-                    midpoint = right_near_x - (self.known_lane_half_width * 0.6)
+                    # Offset inward from the right boundary
+                    midpoint = right_near_x - (self.known_lane_half_width * (1.0 - SAFE_LANE_OFFSET_RATIO))
                 else:
-                    # Standard center lane following
+                    # Standard center road tracking
                     midpoint = (left_near_x + right_near_x) / 2.0
 
                 left_tilt = vectors.vector_1[0].x - vectors.vector_1[1].x
@@ -454,10 +337,9 @@ class LineFollower(Node):
             if midpoint is not None:
                 target_center = half_width + CAMERA_CENTER_OFFSET_PX
                 raw_offset = midpoint - target_center
-                alpha = 0.4
+                alpha = 0.45
                 self.smoothed_offset = alpha * raw_offset + (1 - alpha) * self.smoothed_offset
 
-                # Scale steering KP down slightly at high velocity to prevent oscillation
                 speed_damping = max(0.65, 1.0 - (self.current_speed_estimate * 0.35))
                 effective_steer_kp = STEER_KP_BASE * speed_damping
 
@@ -503,27 +385,29 @@ class LineFollower(Node):
         turn_factor = 1.0 / math.sqrt(1.0 + 3.0 * (turn ** 2))
         turn_factor = max(0.40, turn_factor)
 
-        # 3. Straightaway Boost
+        # 3. Sign Turn Slowdown (Brake early when a LEFT/RIGHT sign is active!)
+        sign_turn_speed_factor = 0.55 if follow_direction in ["LEFT", "RIGHT"] else 1.0
+
+        # 4. Straightaway Boost
         is_clear_straightaway = (front_dist > 2.5) and (abs(turn) < 0.12) and (abs(curvature_signal) < 15.0)
         base_target_speed = MAX_BOOST_SPEED if is_clear_straightaway else CRUISE_SPEED
 
-        speed = base_target_speed * proximity_factor * turn_factor
+        speed = base_target_speed * proximity_factor * turn_factor * sign_turn_speed_factor
         speed = max(AVOID_MIN_SPEED, min(MAX_BOOST_SPEED, speed))
 
         self.rover_move_manual_mode(speed, turn)
 
     def apply_sign_guidance(self, base_turn, follow_direction):
         """
-        Applies directional steering overrides when approaching intersections
-        matching the target mission letter.
+        Applies a smooth steering bias into the fork instead of a hard snap.
         """
         if not follow_direction:
             return base_turn
 
         if follow_direction == "LEFT":
-            return max(base_turn, 0.65)
+            return max(base_turn, 0.45)
         elif follow_direction == "RIGHT":
-            return min(base_turn, -0.65)
+            return min(base_turn, -0.45)
         return base_turn
 
 
