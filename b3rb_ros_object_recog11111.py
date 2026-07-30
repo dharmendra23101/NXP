@@ -35,14 +35,14 @@ LETTER_CLASSES = {'A', 'B', 'C', 'X', 'Y', 'Z'}
 DIRECTION_CLASSES = {'Left', 'Right', 'Straight'}
 
 CONFIDENCE_THRESHOLD = 0.50
-MAX_PAIRING_DISTANCE_PX = 220
+MAX_COLUMN_X_DIFF_PX = 80       # Letters & arrows in one banner column must align horizontally
 SIGN_CONFIRM_COUNT = 3
 
 
 class ObjectRecognizer(Node):
     """
     ROS 2 Node that runs YOLOv8 inference on camera frames, pairs letters
-    with their nearest direction arrow per signboard, debounces detections,
+    with their column-aligned direction arrow below them, debounces detections,
     and publishes combined labels (e.g. 'A_LEFT', 'Y_RIGHT').
     """
 
@@ -154,17 +154,18 @@ class ObjectRecognizer(Node):
         best_pair = None
         best_score = -1.0
 
+        # COLUMN-ALIGNED PAIRING: Pair letters ONLY with arrows below them in the same X-column
         for letter in letters:
             nearest_dir = None
-            nearest_dist = float('inf')
+            smallest_x_diff = float('inf')
             for direction in directions:
-                dist = math_hypot(letter['cx'] - direction['cx'],
-                                  letter['cy'] - direction['cy'])
-                if dist < nearest_dist:
-                    nearest_dist = dist
+                x_diff = abs(letter['cx'] - direction['cx'])
+                # The arrow must be horizontally aligned in the column and generally below/near the letter
+                if x_diff < smallest_x_diff and x_diff < MAX_COLUMN_X_DIFF_PX and (direction['cy'] >= letter['cy'] - 25):
+                    smallest_x_diff = x_diff
                     nearest_dir = direction
 
-            if nearest_dir is None or nearest_dist > MAX_PAIRING_DISTANCE_PX:
+            if nearest_dir is None:
                 continue
 
             score = letter['conf'] + nearest_dir['conf']
@@ -177,10 +178,6 @@ class ObjectRecognizer(Node):
 
         letter_name, direction_name = best_pair
         return f"{letter_name}_{direction_name.upper()}"
-
-
-def math_hypot(dx, dy):
-    return (dx * dx + dy * dy) ** 0.5
 
 
 def main(args=None):
