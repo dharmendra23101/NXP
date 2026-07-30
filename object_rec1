@@ -126,6 +126,8 @@ class ObjectRecognizer(Node):
         return None
 
 
+
+
 def main(args=None):
     rclpy.init(args=args)
     node = ObjectRecognizer()
@@ -140,3 +142,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
