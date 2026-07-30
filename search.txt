@@ -635,3 +635,22 @@ Finished <<< b3rb_ros_line_follower [0.79s]
 
 Summary: 16 packages finished [1.43s]
 edith@ubuntu:~/cognipilot/cranium$
+
+
+
+
+cd ~/cognipilot/cranium/
+colcon build --symlink-install
+source ~/cognipilot/cranium/install/setup.bash  
+
+# Terminal 1: Lane Vectors
+ros2 run b3rb_ros_line_follower vectors
+
+# Terminal 2: Sign Board Detector
+ros2 run b3rb_ros_line_follower detect
+
+# Terminal 3: QR Scanner
+ros2 run b3rb_ros_line_follower qr_detect
+
+# Terminal 4: Ambulance Brain / Runner
+ros2 run b3rb_ros_line_follower runner
