@@ -1,11 +1,6 @@
-
-
-
-
-
+# b3rb_ros_object_recog.py
 
 import os
-
 import cv2
 import numpy as np
 import rclpy
@@ -17,7 +12,6 @@ try:
     from ultralytics import YOLO
 except ImportError:
     YOLO = None
-
 
 DEFAULT_CLASS_NAMES = {
     0: "A",
@@ -38,15 +32,19 @@ CONFIDENCE_THRESHOLD = 0.50
 MAX_COLUMN_X_DIFF_PX = 80
 SIGN_CONFIRM_COUNT = 3
 
+MODEL_PATH = (
+    "/home/edith/cognipilot/cranium/src/"
+    "b3rb_ros_line_follower/"
+    "b3rb_ros_line_follower/"
+    "b3rb_ros_line_follower/"
+    "best.pt"
+)
+
+OVERLAY_COLOR = (0, 215, 255)
+OVERLAY_BG = (30, 30, 30)
+
 
 class ObjectRecognizer(Node):
-    """
-    Runs YOLOv8 on camera images and publishes
-    labels like:
-        A_LEFT
-        B_RIGHT
-        X_STRAIGHT
-    """
 
     def __init__(self):
         super().__init__("object_recognizer")
@@ -58,6 +56,13 @@ class ObjectRecognizer(Node):
             10,
         )
 
+        self.subscription_mission = self.create_subscription(
+            String,
+            "/mission_status",
+            self.mission_status_callback,
+            10,
+        )
+
         self.publisher_sign = self.create_publisher(
             String,
             "/sign_board_detection",
@@ -66,10 +71,8 @@ class ObjectRecognizer(Node):
 
         self.model = None
         self.class_names = DEFAULT_CLASS_NAMES
-
-        ###########################################################
-        # Load YOLO Model
-        ###########################################################
+        self.last_mission_status = "STATE:-- | PATIENT:-- | HOSPITAL:-- | TARGET_LETTER:-- | DELIVERED:0/3"
+        self.last_sign_map_text = "no sign board in view"
 
         if YOLO is None:
             self.get_logger().error(
@@ -77,113 +80,84 @@ class ObjectRecognizer(Node):
                 "Install using:\n"
                 "pip install ultralytics --break-system-packages"
             )
+        elif os.path.exists(MODEL_PATH):
+            try:
+                self.model = YOLO(MODEL_PATH)
+                if getattr(self.model, "names", None):
+                    self.class_names = self.model.names
+                self.get_logger().info(f"Loaded YOLO model:\n{MODEL_PATH}")
+            except Exception as e:
+                self.get_logger().error(f"Failed to load model: {e}")
         else:
+            self.get_logger().error(f"best.pt NOT FOUND:\n{MODEL_PATH}")
 
-            model_path = (
-                "/home/edith/cognipilot/cranium/src/"
-                "b3rb_ros_line_follower/"
-                "b3rb_ros_line_follower/"
-                "b3rb_ros_line_follower/"
-                "best.pt"
-            )
-
-            if os.path.exists(model_path):
-
-                try:
-                    self.model = YOLO(model_path)
-
-                    if getattr(self.model, "names", None):
-                        self.class_names = self.model.names
-
-                    self.get_logger().info(
-                        f"Loaded YOLO model:\n{model_path}"
-                    )
-
-                except Exception as e:
-                    self.get_logger().error(
-                        f"Failed to load model: {e}"
-                    )
-
-            else:
-                self.get_logger().error(
-                    f"best.pt NOT FOUND:\n{model_path}"
-                )
-
-        ###########################################################
-
-        self._streak_label = None
+        self._streak_map = None
         self._streak_count = 0
-
-        ###########################################################
-        # OpenCV Window
-        ###########################################################
 
         cv2.namedWindow("YOLO Sign Detection", cv2.WINDOW_NORMAL)
         cv2.resizeWindow("YOLO Sign Detection", 900, 600)
 
-        self.get_logger().info(
-            "Object Recognizer started."
-        )
+        self.get_logger().info("Object Recognizer started.")
 
-    ###############################################################
+    def mission_status_callback(self, message):
+        self.last_mission_status = message.data
 
     def camera_image_callback(self, message):
-
         np_arr = np.frombuffer(message.data, np.uint8)
-
         image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
         if image is None:
             return
 
         if self.model is None:
+            self.draw_overlay(image)
+            cv2.imshow("YOLO Sign Detection", image)
+            cv2.waitKey(1)
             return
 
-        label = self.classify_sign(image)
+        sign_map = self.classify_signs(image)
+        self._debounce_and_publish(sign_map)
 
-        self._debounce_and_publish(label)
-
-    ###############################################################
-
-    def _debounce_and_publish(self, label):
-
-        if label is None:
-
-            self._streak_label = None
+    def _debounce_and_publish(self, sign_map):
+        if not sign_map:
+            self._streak_map = None
             self._streak_count = 0
             return
 
-        if label == self._streak_label:
+        if sign_map == self._streak_map:
             self._streak_count += 1
         else:
-            self._streak_label = label
+            self._streak_map = sign_map
             self._streak_count = 1
 
         if self._streak_count == SIGN_CONFIRM_COUNT:
-
-            msg = String()
-            msg.data = label
-
-            self.publisher_sign.publish(msg)
-
-            self.get_logger().info(
-                f"Detected Sign Board: {label}"
+            payload = ",".join(
+                f"{letter}_{direction.upper()}"
+                for letter, direction in sorted(sign_map.items())
             )
+            self.last_sign_map_text = payload
+            msg = String()
+            msg.data = payload
+            self.publisher_sign.publish(msg)
+            self.get_logger().info(f"Detected Sign Board: {payload}")
 
-    ###############################################################
+    def draw_overlay(self, image):
+        h, w = image.shape[:2]
+        bar_height = 56
+        cv2.rectangle(image, (0, 0), (w, bar_height), OVERLAY_BG, -1)
+        cv2.putText(image, self.last_mission_status, (8, 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, OVERLAY_COLOR, 1, cv2.LINE_AA)
+        cv2.putText(image, f"SIGN BOARD: {self.last_sign_map_text}", (8, 44),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, OVERLAY_COLOR, 1, cv2.LINE_AA)
 
-    def classify_sign(self, image):
-
+    def classify_signs(self, image):
         try:
-
             results = self.model.predict(
                 image,
                 conf=CONFIDENCE_THRESHOLD,
                 verbose=False,
             )
-
         except Exception as e:
-
             self.get_logger().error(str(e))
             return None
 
@@ -192,19 +166,12 @@ class ObjectRecognizer(Node):
 
         result = results[0]
 
-        ###########################################################
-        # Display YOLO detections
-        ###########################################################
-
         annotated = result.plot()
-
+        self.draw_overlay(annotated)
         cv2.imshow("YOLO Sign Detection", annotated)
         cv2.waitKey(1)
 
-        ###########################################################
-
         boxes = result.boxes
-
         if boxes is None or len(boxes) == 0:
             return None
 
@@ -212,105 +179,68 @@ class ObjectRecognizer(Node):
         directions = []
 
         for box in boxes:
-
             cls = int(box.cls[0])
             conf = float(box.conf[0])
-
             name = self.class_names.get(cls)
 
             if name is None:
                 continue
 
             xyxy = box.xyxy[0]
-
             cx = float((xyxy[0] + xyxy[2]) / 2.0)
             cy = float((xyxy[1] + xyxy[3]) / 2.0)
 
-            detection = {
-                "name": name,
-                "conf": conf,
-                "cx": cx,
-                "cy": cy,
-            }
+            detection = {"name": name, "conf": conf, "cx": cx, "cy": cy}
 
             if name in LETTER_CLASSES:
                 letters.append(detection)
-
             elif name in DIRECTION_CLASSES:
                 directions.append(detection)
 
         if not letters or not directions:
             return None
 
-        ###########################################################
-        # Pair letters with nearest arrow
-        ###########################################################
+        sign_map = {}
+        used_direction_idx = set()
 
-        best_pair = None
-        best_score = -1
+        for letter in sorted(letters, key=lambda d: d["conf"], reverse=True):
+            best_idx = None
+            best_x_diff = float("inf")
 
-        for letter in letters:
-
-            nearest = None
-            smallest_x = float("inf")
-
-            for direction in directions:
+            for idx, direction in enumerate(directions):
+                if idx in used_direction_idx:
+                    continue
 
                 x_diff = abs(letter["cx"] - direction["cx"])
 
                 if (
                     x_diff < MAX_COLUMN_X_DIFF_PX
-                    and x_diff < smallest_x
+                    and x_diff < best_x_diff
                     and direction["cy"] >= letter["cy"] - 25
                 ):
+                    best_x_diff = x_diff
+                    best_idx = idx
 
-                    smallest_x = x_diff
-                    nearest = direction
+            if best_idx is not None:
+                used_direction_idx.add(best_idx)
+                sign_map[letter["name"]] = directions[best_idx]["name"]
 
-            if nearest is None:
-                continue
-
-            score = letter["conf"] + nearest["conf"]
-
-            if score > best_score:
-
-                best_score = score
-
-                best_pair = (
-                    letter["name"],
-                    nearest["name"],
-                )
-
-        if best_pair is None:
-            return None
-
-        letter, direction = best_pair
-
-        return f"{letter}_{direction.upper()}"
-
-
-###############################################################
+        return sign_map if sign_map else None
 
 
 def main(args=None):
-
     rclpy.init(args=args)
-
     node = ObjectRecognizer()
 
     try:
         rclpy.spin(node)
-
     except KeyboardInterrupt:
         pass
-
     finally:
         cv2.destroyAllWindows()
         node.destroy_node()
         rclpy.shutdown()
 
-
-###############################################################
 
 if __name__ == "__main__":
     main()
