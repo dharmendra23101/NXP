@@ -38,12 +38,12 @@ TURN_MAX = 1.0
 # ---------------------------------------------------------------------------
 # TUNE: Velocity & Lane Gains
 # ---------------------------------------------------------------------------
-MAX_BOOST_SPEED = 0.75         # Speed on wide-open straightaways
-CRUISE_SPEED = 0.50            # Standard speed while lane-following
-SLOW_SPEED = 0.18              # Speed for sharp road curvature
-QR_APPROACH_SPEED = 0.12       # Slow speed when approaching any QR/Building
-SIGN_TURN_SPEED = 0.15         # Slow speed when executing a sign-guided turn
-AVOID_MIN_SPEED = 0.10         # Speed floor while dodging an obstacle
+MAX_BOOST_SPEED = 0.75         # Top speed on clear straightaways
+CRUISE_SPEED = 0.55            # Standard speed while lane-following
+SLOW_SPEED = 0.22              # Speed for sharp turns
+QR_APPROACH_SPEED = 0.18       # Speed when approaching/reading any QR code
+SIGN_TURN_SPEED = 0.24         # Speed when executing a sign-guided turn
+AVOID_MIN_SPEED = 0.22         # Minimum speed while squeezing past an obstacle
 
 STEER_KP_BASE = 1.7            # Proportional steering gain
 CURVE_KP = 2.1                 # Anticipation gain for upcoming road bends
@@ -51,9 +51,8 @@ SHARP_KP = 2.6                 # Quadratic correction for large drift recovery
 
 CAMERA_CENTER_OFFSET_PX = 0.0  # Adjust if camera is slightly off-chassis center
 
-# Distance ratio from lane edge when following LEFT/RIGHT signs
-# 0.0 = center of road, 0.5 = touching the line. 0.40 keeps a safe interior gap!
-SAFE_LANE_OFFSET_RATIO = 0.40  
+# Safe interior offset ratio from lane boundary (0.0 = center, 0.5 = touching line)
+SAFE_LANE_OFFSET_RATIO = 0.38  
 
 # ---------------------------------------------------------------------------
 # TUNE: Dynamic Physics Obstacle Avoidance (LIDAR)
@@ -61,7 +60,7 @@ SAFE_LANE_OFFSET_RATIO = 0.40
 LIDAR_FRONT_HALF_ANGLE_DEG = 85
 LIDAR_SCAN_STEP_DEG = 2
 LIDAR_RAY_WINDOW_DEG = 4
-GAP_SAFE_DIST = 1.2
+GAP_SAFE_DIST = 1.15
 MIN_GAP_WIDTH_DEG = 18
 FRONT_CENTER_HALF_ANGLE_DEG = 20
 
@@ -72,7 +71,7 @@ LOOKAHEAD_VELOCITY_GAIN = 1.2
 AVOID_STEER_SMOOTH_ALPHA = 0.40
 
 # ---------------------------------------------------------------------------
-# Mission Zone & Sign Rules
+# Mission Mapping & Rules
 # ---------------------------------------------------------------------------
 QR_CONFIRM_COUNT = 3
 
@@ -100,9 +99,8 @@ S_PARKED = "PARKED"
 class LineFollower(Node):
     """
     Autonomous Medical Response Controller.
-    Manages sequential patient pickup/delivery, slows down upon QR or sign
-    detection, follows lane boundaries smoothly during turns, avoids obstacles,
-    and handles the Municipality Server protocol.
+    Handles lane following, LIDAR obstacle avoidance, column-aligned sign guidance,
+    QR-based patient/hospital confirmation, server handshake, and parking.
     """
 
     def __init__(self):
@@ -421,7 +419,6 @@ class LineFollower(Node):
         self.publish_drive_commands()
 
     def is_in_parking_area(self):
-        # Checks if boxed in by parking lines/walls at low speed
         return (self.left_side_dist < 0.65 and self.right_side_dist < 0.65)
 
     def on_patient_delivered(self):
