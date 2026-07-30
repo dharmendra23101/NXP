@@ -103,7 +103,6 @@ class QRDetector(Node):
                 self.get_logger().debug(f"pyzbar QR failed: {e}")
 
         return None
-        
 
 
 def main(args=None):
