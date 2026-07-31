@@ -38,6 +38,8 @@ LIDAR_RAY_WINDOW_DEG = 4
 GAP_SAFE_DIST = 1.15
 MIN_GAP_WIDTH_DEG = 18
 FRONT_CENTER_HALF_ANGLE_DEG = 20
+SIDE_RAY_ANGLE_DEG = 90
+SIDE_RAY_WINDOW_DEG = 8
 
 AVOID_FAR_DIST_BASE = 1.8
 AVOID_NEAR_DIST = 0.45
@@ -51,7 +53,16 @@ RECOVERY_MAX_TICKS = 25
 RECOVERY_TURN = 0.85
 RECOVERY_SPEED = 0.16
 
+CURVATURE_STRAIGHT_THRESH = 6.0
+STRAIGHT_CONFIRM_FRAMES = 5
+TURN_LOCK_MAX_TICKS = 80
+
 QR_CONFIRM_COUNT = 3
+QR_STOP_TICKS = 20
+
+ALIGN_SIDE_DIST = 0.90
+ALIGN_CONFIRM_FRAMES = 3
+APPROACH_MAX_TICKS = 60
 
 SIGN_TO_PATIENT = {"A": "PATIENT_1", "B": "PATIENT_2", "C": "PATIENT_3"}
 SIGN_TO_HOSPITAL = {"X": "HOSPITAL_1", "Y": "HOSPITAL_2", "Z": "HOSPITAL_3"}
@@ -60,14 +71,21 @@ FAKE_HOSPITALS = {"FAKE_HOSPITAL_1", "FAKE_HOSPITAL_2"}
 ALL_PATIENTS = ["PATIENT_1", "PATIENT_2", "PATIENT_3"]
 
 S_FIND_PATIENT = "FIND_PATIENT"
+S_APPROACH_PATIENT = "APPROACH_PATIENT"
 S_CONFIRM_PATIENT = "CONFIRM_PATIENT"
 S_AWAIT_HOSPITAL_ASSIGN = "AWAIT_HOSPITAL"
 S_FIND_HOSPITAL = "FIND_HOSPITAL"
+S_APPROACH_HOSPITAL = "APPROACH_HOSPITAL"
 S_CONFIRM_HOSPITAL = "CONFIRM_HOSPITAL"
 S_MISSION_COMPLETE = "MISSION_COMPLETE"
 S_EXIT_TO_PARKING = "EXIT_TO_PARKING"
 S_AWAIT_PARK_CONFIRM = "AWAIT_PARK_CONFIRM"
 S_PARKED = "PARKED"
+
+LANE_DRIVE_STATES = (
+    S_FIND_PATIENT, S_APPROACH_PATIENT,
+    S_FIND_HOSPITAL, S_APPROACH_HOSPITAL,
+)
 
 
 class LineFollower(Node):
@@ -90,6 +108,8 @@ class LineFollower(Node):
         self.publisher_joy = self.create_publisher(Joy, '/cerebri/in/joy', QOS_PROFILE_DEFAULT)
         self.publisher_server = self.create_publisher(
             ServerCommunication, '/ServerCommunication', QOS_PROFILE_DEFAULT)
+        self.publisher_mission_status = self.create_publisher(
+            String, '/mission_status', QOS_PROFILE_DEFAULT)
 
         self.target_speed = 0.0
         self.target_turn = 0.0
@@ -108,6 +128,8 @@ class LineFollower(Node):
         self.front_min_dist = float('inf')
         self.left_side_dist = float('inf')
         self.right_side_dist = float('inf')
+        self.left_90_dist = float('inf')
+        self.right_90_dist = float('inf')
         self.has_valid_gap = True
         self.avoid_target_turn = 0.0
         self.avoidance_influence = 0.0
@@ -117,6 +139,15 @@ class LineFollower(Node):
         self.recovering = False
         self.recovery_ticks = 0
 
+        self.turn_lock_direction = None
+        self.turn_lock_straight_counter = 0
+        self.turn_lock_ticks = 0
+
+        self.approach_ticks = 0
+        self.align_counter = 0
+
+        self.dwell_ticks_remaining = 0
+
         self.state = S_FIND_PATIENT
         self.patients_remaining = list(ALL_PATIENTS)
         self.current_patient = self.patients_remaining[0]
@@ -125,6 +156,8 @@ class LineFollower(Node):
 
         self.server_uid_counter = 1
         self.awaiting_ack_for_uid = None
+        self.patient_request_sent = False
+        self.hospital_confirm_sent = False
 
         self.control_timer = self.create_timer(0.1, self.control_loop)
         self.get_logger().info(f"Ambulance Brain online. Targeting {self.current_patient} first.")
@@ -168,6 +201,8 @@ class LineFollower(Node):
         self.front_min_dist = ray_dist(0.0, FRONT_CENTER_HALF_ANGLE_DEG)
         self.left_side_dist = ray_dist(70.0, 15.0)
         self.right_side_dist = ray_dist(-70.0, 15.0)
+        self.left_90_dist = ray_dist(SIDE_RAY_ANGLE_DEG, SIDE_RAY_WINDOW_DEG)
+        self.right_90_dist = ray_dist(-SIDE_RAY_ANGLE_DEG, SIDE_RAY_WINDOW_DEG)
 
         self.dynamic_far_dist = AVOID_FAR_DIST_BASE + (LOOKAHEAD_VELOCITY_GAIN * self.current_speed_estimate)
 
@@ -229,13 +264,13 @@ class LineFollower(Node):
             self.get_logger().info(f"Sign board seen: {parsed}")
 
     def get_target_letter(self):
-        if self.state == S_FIND_PATIENT:
+        if self.state in (S_FIND_PATIENT, S_APPROACH_PATIENT):
             return next((k for k, v in SIGN_TO_PATIENT.items() if v == self.current_patient), None)
-        if self.state == S_FIND_HOSPITAL:
+        if self.state in (S_FIND_HOSPITAL, S_APPROACH_HOSPITAL):
             return next((k for k, v in SIGN_TO_HOSPITAL.items() if v == self.current_hospital), None)
         return None
 
-    def get_follow_direction(self):
+    def get_raw_sign_direction(self):
         if self.sign_timeout_counter <= 0:
             return None
         target_letter = self.get_target_letter()
@@ -262,11 +297,15 @@ class LineFollower(Node):
             return
 
         if self.state == S_FIND_PATIENT and label == self.current_patient:
-            self.get_logger().info(f"Confirmed target patient QR: {label}")
-            self.state = S_CONFIRM_PATIENT
+            self.get_logger().info(f"Confirmed target patient QR: {label}, approaching for side alignment.")
+            self.state = S_APPROACH_PATIENT
+            self.approach_ticks = 0
+            self.align_counter = 0
         elif self.state == S_FIND_HOSPITAL and label == self.current_hospital:
-            self.get_logger().info(f"Confirmed target hospital QR: {label}")
-            self.state = S_CONFIRM_HOSPITAL
+            self.get_logger().info(f"Confirmed target hospital QR: {label}, approaching for side alignment.")
+            self.state = S_APPROACH_HOSPITAL
+            self.approach_ticks = 0
+            self.align_counter = 0
         elif self.state == S_FIND_HOSPITAL and label.startswith("HOSPITAL") and label != self.current_hospital:
             self.get_logger().warn(f"Wrong hospital nearby ({label}), target is {self.current_hospital}.")
 
@@ -330,11 +369,27 @@ class LineFollower(Node):
             self.state = S_PARKED
             return
 
-        if payload.startswith("HOSPITAL_") and self.state == S_AWAIT_HOSPITAL_ASSIGN:
-            self.current_hospital = payload
+        hospital_name = None
+        if payload.startswith("HOSPITAL_"):
+            hospital_name = payload
+        elif payload in SIGN_TO_HOSPITAL:
+            hospital_name = SIGN_TO_HOSPITAL[payload]
+
+        if hospital_name and self.state == S_AWAIT_HOSPITAL_ASSIGN:
+            self.current_hospital = hospital_name
             self.get_logger().info(f"Assigned hospital: {self.current_hospital}")
             self.state = S_FIND_HOSPITAL
             return
+
+    def publish_mission_status(self):
+        target_letter = self.get_target_letter()
+        msg = String()
+        msg.data = (
+            f"STATE:{self.state} | PATIENT:{self.current_patient} | "
+            f"HOSPITAL:{self.current_hospital} | TARGET_LETTER:{target_letter} | "
+            f"DELIVERED:{self.delivered_count}/3"
+        )
+        self.publisher_mission_status.publish(msg)
 
     def control_loop(self):
         if self.sign_timeout_counter > 0:
@@ -345,19 +400,26 @@ class LineFollower(Node):
         if self.qr_seen_recently_counter > 0:
             self.qr_seen_recently_counter -= 1
 
-        if self.state in (S_FIND_PATIENT, S_FIND_HOSPITAL):
+        if self.state in LANE_DRIVE_STATES:
             self.drive_lane_following()
         elif self.state == S_CONFIRM_PATIENT:
             self.rover_move_manual_mode(0.0, 0.0)
-            if self.awaiting_ack_for_uid is None:
+            if self.dwell_ticks_remaining > 0:
+                self.dwell_ticks_remaining -= 1
+            elif not self.patient_request_sent:
                 self.send_server_update(self.current_patient)
+                self.patient_request_sent = True
                 self.state = S_AWAIT_HOSPITAL_ASSIGN
         elif self.state == S_AWAIT_HOSPITAL_ASSIGN:
             self.rover_move_manual_mode(0.0, 0.0)
         elif self.state == S_CONFIRM_HOSPITAL:
             self.rover_move_manual_mode(0.0, 0.0)
-            if self.awaiting_ack_for_uid is None:
+            if self.dwell_ticks_remaining > 0:
+                self.dwell_ticks_remaining -= 1
+            elif not self.hospital_confirm_sent:
                 self.send_server_update(self.current_hospital)
+                self.hospital_confirm_sent = True
+            elif self.awaiting_ack_for_uid is None:
                 self.on_patient_delivered()
         elif self.state == S_MISSION_COMPLETE:
             self.drive_lane_following()
@@ -375,6 +437,7 @@ class LineFollower(Node):
             self.rover_move_manual_mode(0.0, 0.0)
 
         self.publish_drive_commands()
+        self.publish_mission_status()
 
     def is_in_parking_area(self):
         return (self.left_side_dist < 0.65 and self.right_side_dist < 0.65)
@@ -395,18 +458,73 @@ class LineFollower(Node):
             self.get_logger().info(f"Next target: {self.current_patient}")
             self.state = S_FIND_PATIENT
 
+    def update_turn_lock(self, raw_direction, curvature_signal, half_width, vector_valid):
+        if self.turn_lock_direction is None and raw_direction in ("LEFT", "RIGHT"):
+            self.turn_lock_direction = raw_direction
+            self.turn_lock_straight_counter = 0
+            self.turn_lock_ticks = 0
+
+        if self.turn_lock_direction is None:
+            return None
+
+        self.turn_lock_ticks += 1
+
+        if vector_valid:
+            is_straight = (
+                abs(curvature_signal) < CURVATURE_STRAIGHT_THRESH
+                and abs(self.smoothed_offset) < (half_width * 0.15)
+            )
+            if is_straight:
+                self.turn_lock_straight_counter += 1
+            else:
+                self.turn_lock_straight_counter = 0
+
+        if (self.turn_lock_straight_counter >= STRAIGHT_CONFIRM_FRAMES
+                or self.turn_lock_ticks >= TURN_LOCK_MAX_TICKS):
+            self.turn_lock_direction = None
+            self.turn_lock_straight_counter = 0
+            self.turn_lock_ticks = 0
+            return None
+
+        return self.turn_lock_direction
+
+    def check_side_alignment(self):
+        self.approach_ticks += 1
+        min_side = min(self.left_90_dist, self.right_90_dist)
+
+        if min_side < ALIGN_SIDE_DIST:
+            self.align_counter += 1
+        else:
+            self.align_counter = 0
+
+        if (self.align_counter >= ALIGN_CONFIRM_FRAMES
+                or self.approach_ticks >= APPROACH_MAX_TICKS):
+            self.rover_move_manual_mode(0.0, 0.0)
+            next_state = S_CONFIRM_PATIENT if self.state == S_APPROACH_PATIENT else S_CONFIRM_HOSPITAL
+            self.get_logger().info(
+                f"Aligned beside target (side_dist={min_side:.2f}m) - stopping to contact server.")
+            self.state = next_state
+            self.dwell_ticks_remaining = QR_STOP_TICKS
+            self.patient_request_sent = False
+            self.hospital_confirm_sent = False
+            self.approach_ticks = 0
+            self.align_counter = 0
+
     def drive_lane_following(self):
         vectors = self.last_vectors_msg
 
         lane_turn = 0.0
         have_lane_signal = False
         curvature_signal = 0.0
+        half_width = 1.0
 
-        follow_direction = self.get_follow_direction()
+        raw_sign_direction = self.get_raw_sign_direction()
 
         if vectors is not None and vectors.vector_count > 0:
             half_width = vectors.image_width / 2.0
             midpoint = None
+
+            follow_direction = self.turn_lock_direction or raw_sign_direction
             offset_ratio = SIGN_LANE_OFFSET_RATIO if follow_direction in ("LEFT", "RIGHT") else SAFE_LANE_OFFSET_RATIO
 
             if vectors.vector_count == 2:
@@ -456,7 +574,11 @@ class LineFollower(Node):
                     self.get_logger().info(
                         f"[steer] spd={self.target_speed:.2f} turn={lane_turn:.2f} | "
                         f"front={self.front_min_dist:.2f}m infl={self.avoidance_influence:.2f} "
-                        f"sign_guide={follow_direction}")
+                        f"sign_guide={follow_direction} lock={self.turn_lock_direction}")
+
+        locked_direction = self.update_turn_lock(
+            raw_sign_direction, curvature_signal, half_width, have_lane_signal)
+        follow_direction = locked_direction or raw_sign_direction
 
         if not have_lane_signal:
             lane_turn = 0.0
@@ -467,6 +589,7 @@ class LineFollower(Node):
         near_dead_end = self.front_min_dist < NEAR_LINE_FRONT_DIST
         should_start_recovery = (
             not self.recovering
+            and self.turn_lock_direction is None
             and follow_direction is None
             and (self.no_lane_signal_counter >= NO_SIGNAL_RECOVERY_FRAMES or near_dead_end)
         )
@@ -507,7 +630,9 @@ class LineFollower(Node):
         is_clear_straightaway = (front_dist > 2.5) and (abs(turn) < 0.12) and (abs(curvature_signal) < 15.0)
         base_target_speed = MAX_BOOST_SPEED if is_clear_straightaway else CRUISE_SPEED
 
-        if self.qr_seen_recently_counter > 0:
+        if self.state in (S_APPROACH_PATIENT, S_APPROACH_HOSPITAL):
+            speed = QR_APPROACH_SPEED
+        elif self.qr_seen_recently_counter > 0:
             speed = QR_APPROACH_SPEED
         elif follow_direction in ("LEFT", "RIGHT"):
             speed = SIGN_TURN_SPEED
@@ -516,6 +641,9 @@ class LineFollower(Node):
             speed = max(AVOID_MIN_SPEED, min(MAX_BOOST_SPEED, speed))
 
         self.rover_move_manual_mode(speed, turn)
+
+        if self.state in (S_APPROACH_PATIENT, S_APPROACH_HOSPITAL):
+            self.check_side_alignment()
 
 
 def main(args=None):
