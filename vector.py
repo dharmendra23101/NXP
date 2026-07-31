@@ -1,4 +1,16 @@
-
+# Copyright 2024-2026 NXP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import rclpy
 from rclpy.node import Node
@@ -10,11 +22,6 @@ import numpy as np
 
 
 class EdgeVectorPublisher(Node):
-    """
-    ROS 2 Node that extracts black track lane boundary markings from camera frames
-    using HSV color thresholding and publishes left/right EdgeVectors.
-    Protected against T-junction horizontal bars and cross-line jumping.
-    """
 
     def __init__(self):
         super().__init__('edge_vectors_publisher')
@@ -30,7 +37,6 @@ class EdgeVectorPublisher(Node):
             '/edge_vectors',
             10)
 
-        # Publishers for visual debugging in Foxglove / rviz
         self.publisher_thresh = self.create_publisher(
             CompressedImage,
             '/debug_images/thresh_image',
@@ -50,20 +56,16 @@ class EdgeVectorPublisher(Node):
 
         height, width, _ = image.shape
 
-        # --- 1. HSV Segmentation for Black Road Markings ---
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         lower_black = np.array([0, 0, 0], dtype=np.uint8)
         upper_black = np.array([180, 255, 80], dtype=np.uint8)
         mask = cv2.inRange(hsv, lower_black, upper_black)
 
-        # Mask out top 50% of the frame (prevents distant T-junction horizontal lines from distorting vectors)
         mask[0:int(height * 0.50), :] = 0
 
-        # Morphological clean up
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
 
-        # --- 2. Extract Contours & Form Lane Vectors ---
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         left_vector = None
@@ -77,11 +79,9 @@ class EdgeVectorPublisher(Node):
             vx, vy, x0, y0 = cv2.fitLine(c, cv2.DIST_L2, 0, 0.01, 0.01)
             vx, vy, x0, y0 = vx[0], vy[0], x0[0], y0[0]
 
-            # SLOPE FILTER: Reject horizontal-ish lines (e.g., T-junction top bars or crosswalks)
             if abs(vy) < 0.35:
                 continue
 
-            # Calculate x at top (y=height*0.55) and bottom (y=height) of active ROI
             y_bottom = float(height)
             y_top = float(height * 0.55)
             x_bottom = x0 + (y_bottom - y0) * (vx / vy)
@@ -89,7 +89,6 @@ class EdgeVectorPublisher(Node):
 
             valid_lines.append((x_bottom, x_top, y_bottom, y_top))
 
-        # Assign closest valid line on the left and right side of frame center
         left_candidates = [l for l in valid_lines if l[0] < mid_x]
         right_candidates = [l for l in valid_lines if l[0] >= mid_x]
 
@@ -101,7 +100,6 @@ class EdgeVectorPublisher(Node):
             best_r = min(right_candidates, key=lambda l: l[0])
             right_vector = [best_r[1], y_top, best_r[0], y_bottom]
 
-        # --- 3. Publish EdgeVectors Message ---
         msg = EdgeVectors()
         msg.image_height = height
         msg.image_width = width
@@ -124,7 +122,6 @@ class EdgeVectorPublisher(Node):
 
         self.publisher_vectors.publish(msg)
 
-        # --- 4. Visual Debug Publishing ---
         _, thresh_encoded = cv2.imencode('.jpg', mask)
         thresh_msg = CompressedImage()
         thresh_msg.format = 'jpeg'
