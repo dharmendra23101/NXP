@@ -1,4 +1,16 @@
-# b3rb_ros_object_recog.py
+# Copyright 2024-2026 NXP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import os
 import cv2
@@ -40,6 +52,9 @@ MODEL_PATH = (
     "best.pt"
 )
 
+OVERLAY_COLOR = (0, 220, 255)
+OVERLAY_BG = (25, 25, 25)
+
 
 class ObjectRecognizer(Node):
 
@@ -53,6 +68,13 @@ class ObjectRecognizer(Node):
             10,
         )
 
+        self.subscription_mission = self.create_subscription(
+            String,
+            "/mission_status",
+            self.mission_status_callback,
+            10,
+        )
+
         self.publisher_sign = self.create_publisher(
             String,
             "/sign_board_detection",
@@ -61,6 +83,8 @@ class ObjectRecognizer(Node):
 
         self.model = None
         self.class_names = DEFAULT_CLASS_NAMES
+        self.last_mission_status = "STATE: -- | TARGET: -- | LETTER: -- | DONE: 0/3"
+        self.last_sign_map_text = "No Sign Board Detected"
 
         if YOLO is None:
             self.get_logger().error(
@@ -83,15 +107,24 @@ class ObjectRecognizer(Node):
         self._streak_count = 0
 
         cv2.namedWindow("YOLO Sign Detection", cv2.WINDOW_NORMAL)
-        cv2.resizeWindow("YOLO Sign Detection", 900, 600)
+        cv2.resizeWindow("YOLO Sign Detection", 1024, 680)
 
         self.get_logger().info("Object Recognizer started.")
+
+    def mission_status_callback(self, message):
+        self.last_mission_status = message.data
 
     def camera_image_callback(self, message):
         np_arr = np.frombuffer(message.data, np.uint8)
         image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
-        if image is None or self.model is None:
+        if image is None:
+            return
+
+        if self.model is None:
+            self.draw_overlay(image)
+            cv2.imshow("YOLO Sign Detection", image)
+            cv2.waitKey(1)
             return
 
         sign_map = self.classify_signs(image)
@@ -114,10 +147,46 @@ class ObjectRecognizer(Node):
                 f"{letter}_{direction.upper()}"
                 for letter, direction in sorted(sign_map.items())
             )
+            self.last_sign_map_text = payload
             msg = String()
             msg.data = payload
             self.publisher_sign.publish(msg)
             self.get_logger().info(f"Detected Sign Board: {payload}")
+
+    def draw_overlay(self, image):
+        h, w = image.shape[:2]
+        bar_height = 86
+        cv2.rectangle(image, (0, 0), (w, bar_height), OVERLAY_BG, -1)
+        cv2.putText(
+            image,
+            f"MISSION : {self.last_mission_status}",
+            (12, 26),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.56,
+            OVERLAY_COLOR,
+            2,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            image,
+            f"SIGNS   : {self.last_sign_map_text}",
+            (12, 52),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.56,
+            OVERLAY_COLOR,
+            2,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            image,
+            f"STATUS  : YOLOv8 Active | Threshold: {CONFIDENCE_THRESHOLD}",
+            (12, 76),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.48,
+            (180, 255, 180),
+            1,
+            cv2.LINE_AA,
+        )
 
     def classify_signs(self, image):
         try:
@@ -136,6 +205,7 @@ class ObjectRecognizer(Node):
         result = results[0]
 
         annotated = result.plot()
+        self.draw_overlay(annotated)
         cv2.imshow("YOLO Sign Detection", annotated)
         cv2.waitKey(1)
 
