@@ -1,4 +1,21 @@
-# b3rb_ros_line_follower.py
+# Copyright 2024-2026 NXP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# ============================================================================
+#  NXP CUP 2026 - Autonomous Medical Response
+#  "runner" node  ==  the brain of the buggy
+# ============================================================================
 
 import rclpy
 from rclpy.node import Node
@@ -10,28 +27,38 @@ from synapse_msgs.msg import EdgeVectors, ServerCommunication
 QOS_PROFILE_DEFAULT = 10
 PI = math.pi
 
+# ---------------------------------------------------------------------------
+# Control bounds (physical limits of the buggy)
+# ---------------------------------------------------------------------------
 SPEED_MIN = -1.0
 SPEED_MAX = 1.0
 TURN_MIN = -1.0
 TURN_MAX = 1.0
 
+# ---------------------------------------------------------------------------
+# Velocity & Lane Gains
+# ---------------------------------------------------------------------------
 MAX_BOOST_SPEED = 0.75
-CRUISE_SPEED = 0.55
-SLOW_SPEED = 0.22
-QR_APPROACH_SPEED = 0.18
-SIGN_TURN_SPEED = 0.30
-AVOID_MIN_SPEED = 0.22
+CRUISE_SPEED = 0.52
+SLOW_SPEED = 0.20
+QR_APPROACH_SPEED = 0.15
+SIGN_TURN_SPEED = 0.22
+AVOID_MIN_SPEED = 0.20
 
-STEER_KP_BASE = 1.7
-CURVE_KP = 2.1
-SHARP_KP = 2.6
+STEER_KP_BASE = 1.8
+CURVE_KP = 2.2
+SHARP_KP = 2.8
 
 CAMERA_CENTER_OFFSET_PX = 0.0
 
-SAFE_LANE_OFFSET_RATIO = 0.38
+SAFE_LANE_OFFSET_RATIO = 0.36
 SIGN_LANE_OFFSET_RATIO = 0.18
 SIGN_CURVE_BOOST = 1.6
+INTERSECTION_TURN_BIAS = 0.58
 
+# ---------------------------------------------------------------------------
+# Dynamic Physics Obstacle Avoidance & Side Alignment (LIDAR)
+# ---------------------------------------------------------------------------
 LIDAR_FRONT_HALF_ANGLE_DEG = 85
 LIDAR_SCAN_STEP_DEG = 2
 LIDAR_RAY_WINDOW_DEG = 4
@@ -47,6 +74,9 @@ LOOKAHEAD_VELOCITY_GAIN = 1.2
 
 AVOID_STEER_SMOOTH_ALPHA = 0.40
 
+# ---------------------------------------------------------------------------
+# Recovery & Turning Locks
+# ---------------------------------------------------------------------------
 NO_SIGNAL_RECOVERY_FRAMES = 6
 NEAR_LINE_FRONT_DIST = 0.40
 RECOVERY_MAX_TICKS = 25
@@ -57,8 +87,11 @@ CURVATURE_STRAIGHT_THRESH = 6.0
 STRAIGHT_CONFIRM_FRAMES = 5
 TURN_LOCK_MAX_TICKS = 80
 
+# ---------------------------------------------------------------------------
+# Mission Zone & Alignment Rules
+# ---------------------------------------------------------------------------
 QR_CONFIRM_COUNT = 3
-QR_STOP_TICKS = 20
+QR_STOP_TICKS = 15
 
 ALIGN_SIDE_DIST = 0.90
 ALIGN_CONFIRM_FRAMES = 3
@@ -77,6 +110,7 @@ S_AWAIT_HOSPITAL_ASSIGN = "AWAIT_HOSPITAL"
 S_FIND_HOSPITAL = "FIND_HOSPITAL"
 S_APPROACH_HOSPITAL = "APPROACH_HOSPITAL"
 S_CONFIRM_HOSPITAL = "CONFIRM_HOSPITAL"
+S_AWAIT_NEXT_PATIENT = "AWAIT_NEXT_PATIENT"
 S_MISSION_COMPLETE = "MISSION_COMPLETE"
 S_EXIT_TO_PARKING = "EXIT_TO_PARKING"
 S_AWAIT_PARK_CONFIRM = "AWAIT_PARK_CONFIRM"
@@ -145,7 +179,6 @@ class LineFollower(Node):
 
         self.approach_ticks = 0
         self.align_counter = 0
-
         self.dwell_ticks_remaining = 0
 
         self.state = S_FIND_PATIENT
@@ -260,7 +293,7 @@ class LineFollower(Node):
 
         if parsed:
             self.sign_map = parsed
-            self.sign_timeout_counter = 25
+            self.sign_timeout_counter = 30
             self.get_logger().info(f"Sign board seen: {parsed}")
 
     def get_target_letter(self):
@@ -382,14 +415,65 @@ class LineFollower(Node):
             return
 
     def publish_mission_status(self):
-        target_letter = self.get_target_letter()
+        target_letter = self.get_target_letter() or "--"
         msg = String()
         msg.data = (
-            f"STATE:{self.state} | PATIENT:{self.current_patient} | "
-            f"HOSPITAL:{self.current_hospital} | TARGET_LETTER:{target_letter} | "
-            f"DELIVERED:{self.delivered_count}/3"
+            f"STATE: {self.state} | TARGET: {self.current_patient if S_FIND_PATIENT in self.state or S_APPROACH_PATIENT in self.state else self.current_hospital} | "
+            f"LETTER: {target_letter} | DONE: {self.delivered_count}/3"
         )
         self.publisher_mission_status.publish(msg)
+
+    def update_turn_lock(self, raw_direction, curvature_signal, half_width, vector_valid):
+        if self.turn_lock_direction is None and raw_direction in ("LEFT", "RIGHT"):
+            self.turn_lock_direction = raw_direction
+            self.turn_lock_straight_counter = 0
+            self.turn_lock_ticks = 0
+
+        if self.turn_lock_direction is None:
+            return None
+
+        self.turn_lock_ticks += 1
+
+        if vector_valid:
+            is_straight = (
+                abs(curvature_signal) < CURVATURE_STRAIGHT_THRESH
+                and abs(self.smoothed_offset) < (half_width * 0.15)
+            )
+            if is_straight:
+                self.turn_lock_straight_counter += 1
+            else:
+                self.turn_lock_straight_counter = 0
+
+        if (self.turn_lock_straight_counter >= STRAIGHT_CONFIRM_FRAMES
+                or self.turn_lock_ticks >= TURN_LOCK_MAX_TICKS):
+            self.turn_lock_direction = None
+            self.turn_lock_straight_counter = 0
+            self.turn_lock_ticks = 0
+            return None
+
+        return self.turn_lock_direction
+
+    def check_side_alignment(self):
+        self.approach_ticks += 1
+        min_side = min(self.left_90_dist, self.right_90_dist)
+
+        if min_side < ALIGN_SIDE_DIST:
+            self.align_counter += 1
+        else:
+            self.align_counter = 0
+
+        if (self.align_counter >= ALIGN_CONFIRM_FRAMES
+                or self.approach_ticks >= APPROACH_MAX_TICKS):
+            self.rover_move_manual_mode(0.0, 0.0)
+            next_state = S_CONFIRM_PATIENT if self.state == S_APPROACH_PATIENT else S_CONFIRM_HOSPITAL
+            self.get_logger().info(
+                f"Aligned beside target (side_dist={min_side:.2f}m) - stopping to contact server.")
+            self.state = next_state
+            self.dwell_ticks_remaining = QR_STOP_TICKS
+            self.patient_request_sent = False
+            self.hospital_confirm_sent = False
+            self.approach_ticks = 0
+            self.align_counter = 0
 
     def control_loop(self):
         if self.sign_timeout_counter > 0:
@@ -457,58 +541,6 @@ class LineFollower(Node):
             self.current_patient = self.patients_remaining[0]
             self.get_logger().info(f"Next target: {self.current_patient}")
             self.state = S_FIND_PATIENT
-
-    def update_turn_lock(self, raw_direction, curvature_signal, half_width, vector_valid):
-        if self.turn_lock_direction is None and raw_direction in ("LEFT", "RIGHT"):
-            self.turn_lock_direction = raw_direction
-            self.turn_lock_straight_counter = 0
-            self.turn_lock_ticks = 0
-
-        if self.turn_lock_direction is None:
-            return None
-
-        self.turn_lock_ticks += 1
-
-        if vector_valid:
-            is_straight = (
-                abs(curvature_signal) < CURVATURE_STRAIGHT_THRESH
-                and abs(self.smoothed_offset) < (half_width * 0.15)
-            )
-            if is_straight:
-                self.turn_lock_straight_counter += 1
-            else:
-                self.turn_lock_straight_counter = 0
-
-        if (self.turn_lock_straight_counter >= STRAIGHT_CONFIRM_FRAMES
-                or self.turn_lock_ticks >= TURN_LOCK_MAX_TICKS):
-            self.turn_lock_direction = None
-            self.turn_lock_straight_counter = 0
-            self.turn_lock_ticks = 0
-            return None
-
-        return self.turn_lock_direction
-
-    def check_side_alignment(self):
-        self.approach_ticks += 1
-        min_side = min(self.left_90_dist, self.right_90_dist)
-
-        if min_side < ALIGN_SIDE_DIST:
-            self.align_counter += 1
-        else:
-            self.align_counter = 0
-
-        if (self.align_counter >= ALIGN_CONFIRM_FRAMES
-                or self.approach_ticks >= APPROACH_MAX_TICKS):
-            self.rover_move_manual_mode(0.0, 0.0)
-            next_state = S_CONFIRM_PATIENT if self.state == S_APPROACH_PATIENT else S_CONFIRM_HOSPITAL
-            self.get_logger().info(
-                f"Aligned beside target (side_dist={min_side:.2f}m) - stopping to contact server.")
-            self.state = next_state
-            self.dwell_ticks_remaining = QR_STOP_TICKS
-            self.patient_request_sent = False
-            self.hospital_confirm_sent = False
-            self.approach_ticks = 0
-            self.align_counter = 0
 
     def drive_lane_following(self):
         vectors = self.last_vectors_msg
@@ -634,7 +666,7 @@ class LineFollower(Node):
             speed = QR_APPROACH_SPEED
         elif self.qr_seen_recently_counter > 0:
             speed = QR_APPROACH_SPEED
-        elif follow_direction in ("LEFT", "RIGHT"):
+        elif follow_direction in ["LEFT", "RIGHT"]:
             speed = SIGN_TURN_SPEED
         else:
             speed = base_target_speed * proximity_factor * turn_factor
